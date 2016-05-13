@@ -29,6 +29,7 @@ extern "C" {
 #include <functional>
 #include <string>
 #include <map>
+#include <set>
 #include <algorithm>
 #include <memory>
 
@@ -51,12 +52,11 @@ void registerExecPreCallback(void (*callback)(CPUState*, target_ulong));
 #include "gen_syscall_ppp_register_return.cpp"
 
 }
+// Used to confirm that entry into syscalls2 exec callback is from the sycalls2 translate callback
+std::set<std::pair <target_ulong, target_ulong>> syscallPCpoints; 
+//std::set<target_ulong> syscallPCpoints; 
 
 // Forward declarations
-target_ulong get_pointer_32bit(CPUState *env, uint32_t argnum);
-target_ulong get_pointer_64bit(CPUState *env, uint32_t argnum);
-target_ulong get_return_pointer_32bit(CPUState *env, uint32_t argnum);
-target_ulong get_return_pointer_64bit(CPUState *env, uint32_t argnum);
 int32_t get_s32_generic(CPUState *env, uint32_t argnum);
 int64_t get_s64_generic(CPUState *env, uint32_t argnum);
 int32_t get_return_s32_generic(CPUState *env, uint32_t argnum);
@@ -241,12 +241,10 @@ struct Profile {
     int32_t      (*get_s32)(CPUState *, uint32_t);
     uint64_t     (*get_64)(CPUState *, uint32_t);
     int64_t      (*get_s64)(CPUState *, uint32_t);
-    target_ulong (*get_pointer)(CPUState *, uint32_t);
     uint32_t     (*get_return_32 )(CPUState *, uint32_t);
     int32_t      (*get_return_s32)(CPUState *, uint32_t);
     uint64_t     (*get_return_64)(CPUState *, uint32_t);
     int64_t      (*get_return_s64)(CPUState *, uint32_t);
-    target_ulong (*get_return_pointer)(CPUState *, uint32_t);
 };
 
 Profile profiles[PROFILE_LAST] = {
@@ -259,12 +257,10 @@ Profile profiles[PROFILE_LAST] = {
         .get_s32 = get_s32_generic,
         .get_64 = get_64_linux_x86,
         .get_s64 = get_s64_generic,
-        .get_pointer = get_pointer_32bit,
         .get_return_32 = get_32_linux_x86,
         .get_return_s32 = get_return_s32_generic,
         .get_return_64 = get_64_linux_x86,
         .get_return_s64 = get_return_s64_generic,
-        .get_return_pointer = get_pointer_32bit
     },
     {
         .enter_switch = syscall_enter_switch_linux_arm,
@@ -275,12 +271,10 @@ Profile profiles[PROFILE_LAST] = {
         .get_s32 = get_s32_generic,
         .get_64 = get_64_linux_arm,
         .get_s64 = get_s64_generic,
-        .get_pointer = get_pointer_32bit,
         .get_return_32 = get_32_linux_arm,
         .get_return_s32 = get_return_s32_generic,
         .get_return_64 = get_64_linux_arm,
         .get_return_s64 = get_return_s64_generic,
-        .get_return_pointer = get_pointer_32bit
     },
     {
         .enter_switch = syscall_enter_switch_windowsxp_sp2_x86,
@@ -291,12 +285,10 @@ Profile profiles[PROFILE_LAST] = {
         .get_s32 = get_s32_generic,
         .get_64 = get_64_windows_x86,
         .get_s64 = get_s64_generic,
-        .get_pointer = get_pointer_32bit,
         .get_return_32 = get_return_32_windows_x86,
         .get_return_s32 = get_return_s32_generic,
         .get_return_64 = get_return_64_windows_x86,
         .get_return_s64 = get_return_s64_generic,
-        .get_return_pointer = get_return_pointer_32bit
     },
     {
         .enter_switch = syscall_enter_switch_windowsxp_sp3_x86,
@@ -307,12 +299,10 @@ Profile profiles[PROFILE_LAST] = {
         .get_s32 = get_s32_generic,
         .get_64 = get_64_windows_x86,
         .get_s64 = get_s64_generic,
-        .get_pointer = get_pointer_32bit,
         .get_return_32 = get_return_32_windows_x86,
         .get_return_s32 = get_return_s32_generic,
         .get_return_64 = get_return_64_windows_x86,
         .get_return_s64 = get_return_s64_generic,
-        .get_return_pointer = get_return_pointer_32bit
     },
     {
         .enter_switch = syscall_enter_switch_windows7_x86,
@@ -323,12 +313,10 @@ Profile profiles[PROFILE_LAST] = {
         .get_s32 = get_s32_generic,
         .get_64 = get_64_windows_x86,
         .get_s64 = get_s64_generic,
-        .get_pointer = get_pointer_32bit,
         .get_return_32 = get_return_32_windows_x86,
         .get_return_s32 = get_return_s32_generic,
         .get_return_64 = get_return_64_windows_x86,
         .get_return_s64 = get_return_s64_generic,
-        .get_return_pointer = get_return_pointer_32bit
     }
 };
 
@@ -353,9 +341,6 @@ uint64_t get_64(CPUState *env, uint32_t argnum) {
 int64_t get_s64(CPUState *env, uint32_t argnum) {
     return syscalls_profile->get_s64(env, argnum);
 }
-target_ulong get_pointer(CPUState *env, uint32_t argnum) {
-    return syscalls_profile->get_pointer(env, argnum);
-}
 uint32_t get_return_32 (CPUState *env, uint32_t argnum) {
     return syscalls_profile->get_return_32(env, argnum);
 }
@@ -367,25 +352,6 @@ uint64_t get_return_64(CPUState *env, uint32_t argnum) {
 }
 int64_t get_return_s64(CPUState *env, uint32_t argnum) {
     return syscalls_profile->get_return_s64(env, argnum);
-}
-target_ulong get_return_pointer(CPUState *env, uint32_t argnum) {
-    return syscalls_profile->get_return_pointer(env, argnum);
-}
-
-target_ulong get_pointer_32bit(CPUState *env, uint32_t argnum) {
-    return (target_ulong) get_32(env, argnum);
-}
-
-target_ulong get_pointer_64bit(CPUState *env, uint32_t argnum) {
-    return (target_ulong) get_64(env, argnum);
-}
-
-target_ulong get_return_pointer_32bit(CPUState *env, uint32_t argnum) {
-    return (target_ulong) get_return_32(env, argnum);
-}
-
-target_ulong get_return_pointer_64bit(CPUState *env, uint32_t argnum) {
-    return (target_ulong) get_return_64(env, argnum);
 }
 
 int32_t get_s32_generic(CPUState *env, uint32_t argnum) {
@@ -438,11 +404,15 @@ static int returned_check_callback(CPUState *env, TranslationBlock* tb){
 // This will only be called for instructions where the
 // translate_callback returned true
 int exec_callback(CPUState *env, target_ulong pc) {
-    // run any code we need to update our state
-    for(const auto callback : preExecCallbacks){
-        callback(env, pc);
+    // check if pc, asid pair was for a valid syscall translation point
+    // if so run exec_callback
+    if (syscallPCpoints.end() != syscallPCpoints.find(std::make_pair(pc, panda_current_asid(env)))){
+        // run any code we need to update our state
+        for(const auto callback : preExecCallbacks){
+            callback(env, pc);
+        }
+        syscalls_profile->enter_switch(env, pc);
     }
-    syscalls_profile->enter_switch(env, pc);
     return 0;
 }
 
@@ -454,14 +424,17 @@ bool translate_callback(CPUState *env, target_ulong pc) {
     panda_virtual_memory_rw(env, pc, buf, 2, 0);
     // Check if the instruction is syscall (0F 05)
     if (buf[0]== 0x0F && buf[1] == 0x05) {
+        syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
         return true;
     }
     // Check if the instruction is int 0x80 (CD 80)
     else if (buf[0]== 0xCD && buf[1] == 0x80) {
+        syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
         return true;
     }
     // Check if the instruction is sysenter (0F 34)
     else if (buf[0]== 0x0F && buf[1] == 0x34) {
+        syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
         return true;
     }
     else {
@@ -475,10 +448,12 @@ bool translate_callback(CPUState *env, target_ulong pc) {
         panda_virtual_memory_rw(env, pc, buf, 4, 0);
         // EABI
         if ( ((buf[3] & 0x0F) ==  0x0F)  && (buf[2] == 0) && (buf[1] == 0) && (buf[0] == 0) ) {
+            syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
             return true;
         }
 #if defined(CAPTURE_ARM_OABI)
         else if (((buf[3] & 0x0F) == 0x0F)  && (buf[2] == 0x90)) {  // old ABI
+            syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
             return true;
         }
 #endif
@@ -487,6 +462,7 @@ bool translate_callback(CPUState *env, target_ulong pc) {
         panda_virtual_memory_rw(env, pc, buf, 2, 0);
         // check for Thumb mode syscall
         if (buf[1] == 0xDF && buf[0] == 0){
+            syscallPCpoints.insert(std::make_pair(pc, panda_current_asid(env)));
             return true;
         }
     }

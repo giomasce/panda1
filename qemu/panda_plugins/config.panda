@@ -49,3 +49,10 @@ pmemaccess
 rehosting
 coverage
 effects
+stpi
+dwarfp
+dwarf_taint
+dwarf_simple
+#strace
+loaded
+wintrospection
