@@ -1,0 +1,788 @@
+#
+# Key
+# XX not easily pigeonholed and probably unimportant
+# PR process or thread
+# ID identity: user, group, etc
+# FI file system
+# FD file descriptor
+# NE network
+# SI signals
+# LK mutex or futex
+# IP ipc of some kind
+# TI time
+# TR timer
+# ME memory
+# LO low-level
+#
+# should these be given their own thingeys?  
+# timers? 
+# pipes?  
+# 
+# consider signalfd.  create a file descriptor for accepting signals
+# how should we categorize?  Seems like FD, SI would be best?
+# And that would allow us to differentiate files from file descriptors
+# so that dup could get FD whereas open would get FI FD? 
+
+
+# restarting a syscall
+LO 0 long sys_restart_syscall(void);
+
+# terminate calling process
+PR 1 long sys_exit(int error_code);
+
+# create child process
+PR 2 pid_t sys_fork();
+
+# read, write, open, close file
+FD 3 long sys_read(unsigned int fd, char __user *buf, size_t count);
+FD 4 long sys_write(unsigned int fd, const char __user *buf,size_t count);
+FD FI 5 long sys_open(const char __user *filename,int flags, int mode);
+FD 6 long sys_close(unsigned int fd);
+ 
+#  wait for process to change state
+PR 7 long sys_waitpid(pid_t pid, int __user *stat_addr, int options);
+
+# open/create file
+# create/destroy a new name for a file
+FI FD 8 long sys_creat(const char __user *pathname, int mode);
+FI 9 long sys_link(const char __user *oldname,const char __user *newname);
+FI 10 long sys_unlink(const char __user *pathname);
+
+# execute a progra
+PR FI 11 int sys_execve(const char *filename, const char *argv[], const char *const envp[]);
+
+# change working dir
+FI 12 long sys_chdir(const char __user *filename);
+
+# get time since epoch
+TI 13 long sys_time(time_t __user *tloc);
+
+# create special or ordinary file
+# change file mode bits
+# change ownership of file
+# get file status
+FI 14 long sys_mknod(const char __user *filename, int mode,unsigned dev);
+FI 15 long sys_chmod(const char __user *filename, mode_t mode);
+FI 16 long sys_lchown16(const char __user *filename,old_uid_t user, old_gid_t group);
+FI 18 long sys_stat(const char __user *filename,struct __old_kernel_stat __user *statbuf);
+
+# reposition read/write file offset
+FD 19 long sys_lseek(unsigned int fd, off_t offset,unsigned int origin);
+
+# get process identification
+PR 20 long sys_getpid(void);
+
+# mount filesystem
+FI 21 long sys_mount(char __user *dev_name, char __user *dir_name,char __user *type, unsigned long flags,void __user *data);
+FI 22 long sys_oldumount(char __user *name);
+
+# set/get user identity
+ID 23 long sys_setuid16(old_uid_t uid);
+ID 24 long sys_getuid16(void);
+
+# set time
+TI 25 long sys_stime(time_t __user *tptr);
+
+# process trace
+PR 26 long sys_ptrace(long request, long pid, unsigned long addr,unsigned long data);
+
+# set an alarm clock for delivery of a signal
+SI 27 long sys_alarm(unsigned int seconds);o
+
+# get file stats
+FD 28 long sys_fstat(unsigned int fd,struct __old_kernel_stat __user *statbuf);
+
+# wait for signal
+SI 29 long sys_pause(void);
+
+# change file last access and modification times
+FI TI 30 long sys_utime(char __user *filename,struct utimbuf __user *times);
+
+# check real user's permissions for a file
+FI 33 long sys_access(const char __user *filename, int mode);
+
+# change process priority
+PR 34 long sys_nice(int increment);
+
+# commit buffer cache to disk
+FI 36 long sys_sync(void);
+
+# send signal to a process
+SI PR 37 long sys_kill(int pid, int sig);
+
+# change the name or location of a file
+# create/remove directory
+# duplicate a file descriptor
+# create pipe
+FI 38 long sys_rename(const char __user *oldname,const char __user *newname);
+FI 39 long sys_mkdir(const char __user *pathname, int mode);
+FI 40 long sys_rmdir(const char __user *pathname);
+FD 41 long sys_dup(unsigned int fildes);
+FD 42 long sys_pipe(int __user *fildes);
+
+# get process times
+TI 43 long sys_times(struct tms __user *tbuf);
+
+# change data segment size
+ME 45 long sys_brk(unsigned long brk);
+
+# set/get group identity
+ID 46 long sys_setgid16(old_gid_t gid);
+ID 47 long sys_getgid16(void);
+
+# ANSI C signal handling
+SI 48 long sys_signal(int sig, __sighandler_t handler);
+
+# get effective user identity of calling process
+IP 49 long sys_geteuid16(void);
+
+# get effective group id of calling process
+ID 50 long sys_getegid16(void);
+
+# switch process accounting on or off
+PR 51 long sys_acct(const char __user *name);
+
+# unmount filesystem
+FI 52 long sys_umount(char __user *name, int flags);
+
+# control device
+# manipulate file descriptor
+FD LO 54 long sys_ioctl(unsigned int fd, unsigned int cmd,unsigned long arg);
+FD LO 55 long sys_fcntl(unsigned int fd, unsigned int cmd, unsigned long arg);
+
+# set process group id
+PR ID 57 long sys_setpgid(pid_t pid, pid_t pgid);
+
+# get name and information about current kernel
+LO 59 long sys_olduname(struct oldold_utsname __user *);
+
+# set file mode creation mask
+FI 60 long sys_umask(int mask);
+
+# change root directory
+FI 61 long sys_chroot(const char __user *filename);
+
+# get filesystem statistics
+FI 62 long sys_ustat(unsigned dev, struct ustat __user *ubuf);
+
+# duplicate a file descriptor
+FD 63 long sys_dup2(unsigned int oldfd, unsigned int newfd);
+
+# get parent pid
+PR 64 long sys_getppid(void);
+
+# gets process group of calling process
+PR ID 65 long sys_getpgrp(void);
+
+# creates a session and sets the process group ID
+PR ID 66 long sys_setsid(void);
+
+# examine and change a signal action
+SI 67 int sigaction(int sig, const struct old_sigaction __user *act, struct old_sigaction __user *oact);
+
+# manipulation of signal mask (obsolete?)
+SI 68 long sys_sgetmask(void);
+SI 69 long sys_ssetmask(int newmask);
+
+# set real and/or effective user or group ID
+ID 70 long sys_setreuid16(old_uid_t ruid, old_uid_t euid);
+ID 71 long sys_setregid16(old_gid_t rgid, old_gid_t egid);
+
+# wait for a signal
+SI 72 long sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask);
+
+# examine pending signals
+SI 73 long sys_sigpending(old_sigset_t __user *set);
+
+# set hostname
+LO 74 long sys_sethostname(char __user *name, int len);
+
+# set/get resource limits
+ID PR 75 long sys_setrlimit(unsigned int resource,struct rlimit __user *rlim);
+ID PR 76 long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim);
+ID PR 77 long sys_getrusage(int who, struct rusage __user *ru);
+
+# get/set finegrained time 
+TI 78 long sys_gettimeofday(struct timeval __user *tv,struct timezone __user *tz);
+TI 79 long sys_settimeofday(struct timeval __user *tv,struct timezone __user *tz);
+
+# get/set list of supplementary group IDs
+ID 80 long sys_getgroups16(int gidsetsize, old_gid_t __user *grouplist);
+ID 81 long sys_setgroups16(int gidsetsize, old_gid_t __user *grouplist);
+
+# synchronous I/O multiplexing
+LO 82 long sys_old_select(struct sel_arg_struct __user *arg);
+
+# make a new name for a file (symbolic link)
+FI 83 long sys_symlink(const char __user *old, const char __user *new);
+
+# get file status
+FI 84 long sys_lstat(const char __user *filename,struct __old_kernel_stat __user *statbuf);
+
+# read value of a symbolic link
+FI 85 long sys_readlink(const char __user *path,char __user *buf, int bufsiz);
+
+# load shared library
+PR FI 86 long sys_uselib(const char __user *library);
+
+# enable devices and files for paging and swapping
+FI LO 87 long sys_swapon(const char __user *specialfile, int swap_flags);
+
+# reboot or enable/disable Ctrl-Alt-Del
+LO 88 long sys_reboot(int magic1, int magic2, unsigned int cmd,void __user *arg);
+
+# read directory entry
+FI 89 long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
+
+# map or unmap files or devices into memory
+FI ME 90 long sys_old_mmap(struct mmap_arg_struct __user *arg);
+FI ME 91 long sys_munmap(unsigned long addr, size_t len);
+
+# truncate a file to a specified length
+FI 92 long sys_truncate(const char __user *path, long length);
+FD 93 long sys_ftruncate(unsigned int fd, unsigned long length);
+
+# change permissions of a file
+FD 94 long sys_fchmod(unsigned int fd, mode_t mode);
+
+# change ownership of file
+FD 95 long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group);
+
+#  get/set program scheduling priority
+PR 96 long sys_getpriority(int which, int who);
+PR 97 long sys_setpriority(int which, int who, int niceval);
+
+# get filesystem statistics
+FI 99 long sys_statfs(const char __user * path,struct statfs __user *buf);
+FD 100 long sys_fstatfs(unsigned int fd, struct statfs __user *buf);
+
+# set port input/output permissions
+LO 101 long sys_ioperm(unsigned long from, unsigned long num, int on);
+
+# socket system calls
+NE 102 long sys_socketcall(int call, unsigned long __user *args);
+
+# read and/or clear kernel message ring buffer
+LO 103 long sys_syslog(int type, char __user *buf, int len);
+
+# set/get or set value of an interval timer
+SI TR 104 long sys_setitimer(int which,struct itimerval __user *value,struct itimerval __user *ovalue);
+SI TR 105 long sys_getitimer(int which, struct itimerval __user *value);
+
+# get file status
+FI 106 long sys_newstat(const char __user *filename,struct stat __user *statbuf);
+FI 107 long sys_newlstat(const char __user *filename,struct stat __user *statbuf);
+FD 108 long sys_newfstat(unsigned int fd, struct stat __user *statbuf);
+
+# get name and information about current kernel
+LO 109 long sys_uname(struct old_utsname __user *);
+
+# change I/O privilege level
+LO 110 int sys_iopl(int level);
+
+# virtually hangup the current terminal
+LO 111 long sys_vhangup(void);
+
+# enter virtual 8086 mode
+LO 113 int sys_vm86old(struct vm86_struct *info);
+
+# wait for process to change state, BSD style
+PR 114 long sys_wait4(pid_t pid, int __user *stat_addr,int options, struct rusage __user *ru);
+
+# stop swapping to file/device
+FI 115 long sys_swapoff(const char __user *specialfile);
+
+# returns information on overall system statistics
+LO 116 long sys_sysinfo(struct sysinfo __user *info);
+
+# System V IPC system calls
+IP 117 long sys_ipc(unsigned int call, int first, unsigned long second,unsigned long third, void __user *ptr, long fifth);
+
+# synchronize a file's in-core state with storage device
+FD 118 long sys_fsync(unsigned int fd);
+
+# return from signal handler and cleanup stack frame
+SI 119 int sys_sigreturn(unsigned long __unused);
+
+# create a child process
+PR 120 long sys_clone(unsigned long flags, void *child_stack, void *ptid, void *ctid, struct pt_regs *regs);
+
+# set NIS domain name
+NE 121 long sys_setdomainname(char __user *name, int len);
+
+# get name and information about current kernel                                                                                                          
+LO 122 long sys_newuname(struct new_utsname __user *name);
+
+# read or write the local descriptor table (ldt) for a process
+LO 123 int sys_modify_ldt(int func, void *ptr, unsigned long bytecount);
+
+# tune kernel clock
+LO 124 long sys_adjtimex(struct timex __user *txc_p);
+
+# set protection on a region of memory
+ME 125 long sys_mprotect(unsigned long start, size_t len,unsigned long prot);
+
+# examine and change blocked signals
+SI 126 long sys_sigprocmask(int how, old_sigset_t __user *set,old_sigset_t __user *oset);
+
+# load/unload a kernel module
+LO 128 long sys_init_module(void __user *umod, unsigned long len,const char __user *uargs);
+LO 129 long sys_delete_module(const char __user *name_user,unsigned int flags);
+
+# manipulate disk quotas
+FI 131 long sys_quotactl(unsigned int cmd, const char __user *special,qid_t id, void __user *addr);
+
+# get process group
+PR ID 132 long sys_getpgid(pid_t pid);
+
+# change working directory
+FD 133 long sys_fchdir(unsigned int fd);
+
+# start, flush, or tune buffer-dirty-flush daemon
+LO 134 long sys_bdflush(int func, long data);
+
+# get filesystem type information
+FI 135 long sys_sysfs(int option,unsigned long arg1, unsigned long arg2);
+
+# set the process execution domain
+PR SI 136 long sys_personality(unsigned int personality);
+
+# set user/group identity used for filesystem checks
+ID 138 long sys_setfsuid16(old_uid_t uid);
+ID 139 long sys_setfsgid16(old_gid_t gid);
+
+# reposition read/write file offset
+FD 140 long sys_llseek(unsigned int fd, unsigned long offset_high,unsigned long offset_low, loff_t __user *result,unsigned int origin);
+
+# get directory entries
+FD 141 long sys_getdents(unsigned int fd,struct linux_dirent __user *dirent,unsigned int count);
+
+# synchronous I/O multiplexing
+LO 142 long sys_select(int n, fd_set __user *inp, fd_set __user *outp,fd_set __user *exp, struct timeval __user *tvp);
+
+# apply or remove an advisory lock on an open file
+FD 143 long sys_flock(unsigned int fd, unsigned int cmd);
+
+# synchronize a file with a memory map
+ME 144 long sys_msync(unsigned long start, size_t len, int flags);
+
+# read or write data into multiple buffers
+FD 145 long sys_readv(unsigned long fd,const struct iovec __user *vec,unsigned long vlen);
+FD 146 long sys_writev(unsigned long fd,const struct iovec __user *vec,unsigned long vlen);
+
+# get session ID
+ID 147 long sys_getsid(pid_t pid);
+
+# synchronize a file's in-core state with storage device
+FD 148 long sys_fdatasync(unsigned int fd);
+
+# read/write system parameters
+LO 149 long sys_sysctl(struct __sysctl_args __user *args);
+
+# lock and unlock memory
+ME 150 long sys_mlock(unsigned long start, size_t len);
+ME 151 long sys_munlock(unsigned long start, size_t len);
+ME 152 long sys_mlockall(int flags);
+ME 153 long sys_munlockall(void);
+
+# set and get scheduling (as in thread/proc scheduling) parameters 
+# set and get scheduling policy/parameters 
+PR 154 long sys_sched_setparam(pid_t pid,struct sched_param __user *param);
+PR 155 long sys_sched_getparam(pid_t pid,struct sched_param __user *param);
+PR 156 long sys_sched_setscheduler(pid_t pid, int policy,struct sched_param __user *param);
+PR 157 long sys_sched_getscheduler(pid_t pid);
+
+# yield the processor (to scheduler)
+PR 158 long sys_sched_yield(void);
+
+# get static priority range
+PR 159 long sys_sched_get_priority_max(int policy);
+PR 160 long sys_sched_get_priority_min(int policy);
+
+# get the SCHED_RR interval for the named process
+PR 161 long sys_sched_rr_get_interval(pid_t pid,struct timespec __user *interval);
+
+#  high-resolution sleep
+PR TI 162 long sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp);
+
+# remap a virtual memory address
+ME 163 long sys_mremap(unsigned long addr,unsigned long old_len, unsigned long new_len,unsigned long flags, unsigned long new_addr);
+
+# set real, effective and saved user or group ID
+ID 164 long sys_setresuid16(old_uid_t ruid, old_uid_t euid, old_uid_t suid);
+ID 165 long sys_getresuid16(old_uid_t __user *ruid,old_uid_t __user *euid, old_uid_t __user *suid);
+
+# enter virtual 8086 mode
+LO 166 int sys_vm86(unsigned long fn, struct vm86plus_struct *v86);
+
+# wait for some event on a file descriptor
+FD 168 long sys_poll(struct pollfd __user *ufds, unsigned int nfds,long timeout);
+
+# set real, effective and saved user or group ID
+ID 170 long sys_setresgid16(old_gid_t rgid, old_gid_t egid, old_gid_t sgid);
+ID 171 long sys_getresgid16(old_gid_t __user *rgid,old_gid_t __user *egid, old_gid_t __user *sgid);
+
+# operations on a process 
+PR 172 long sys_prctl(int option, unsigned long arg2, unsigned long arg3,unsigned long arg4, unsigned long arg5);
+
+# return from signal handler and cleanup stack frame
+# examine and change a signal action
+# examine and change blocked signals
+# examine pending signals
+# synchronously wait for queued signals
+SI 173 int sys_rt_sigreturn(unsigned long __unused);
+SI 174 long rt_sigaction(int sig, const struct sigaction __user * act, struct sigaction __user * oact,  size_t sigsetsize);
+SI 175 long sys_rt_sigprocmask(int how, sigset_t __user *set,sigset_t __user *oset, size_t sigsetsize);
+SI 176 long sys_rt_sigpending(sigset_t __user *set, size_t sigsetsize);
+SI 177 long sys_rt_sigtimedwait(const sigset_t __user *uthese,siginfo_t __user *uinfo,const struct timespec __user *uts,size_t sigsetsize);
+
+# queue a signal and data
+# wait for a signal
+SO 178 long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo);
+SI 179 int sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
+
+#  read from or write to a file descriptor at a given offset
+FD 180 long sys_pread64(unsigned int fd, char __user *buf,size_t count, loff_t pos);
+FD 181 long sys_pwrite64(unsigned int fd, const char __user *buf,size_t count, loff_t pos);
+
+# change ownership of a file
+FI 182 long sys_chown16(const char __user *filename,old_uid_t user, old_gid_t group);
+
+# get current working directory
+FI 183 long sys_getcwd(char __user *buf, unsigned long size);
+
+# get/set thread capabilities
+PR 184 long sys_capget(cap_user_header_t header,cap_user_data_t dataptr);
+PR 185 long sys_capset(cap_user_header_t header,const cap_user_data_t data);
+
+# set and/or get signal stack context
+SI 186 int sys_sigaltstack(const stack_t *ss, stack_t *oss);
+
+# transfer data between file descriptors
+FD 187 long sys_sendfile(int out_fd, int in_fd,off_t __user *offset, size_t count);
+
+# create a child process and block parent
+PR 190 pid_t sys_vfork();
+
+# get/set resource limits
+PR 191 long sys_getrlimit(unsigned int resource,struct rlimit __user *rlim);
+
+# mmap also?
+ME 192 long sys_mmap_pgoff(unsigned long addr, unsigned long len,unsigned long prot, unsigned long flags,unsigned long fd, unsigned long pgoff);
+
+# truncate a file to a specified length
+FI 193 long sys_truncate64(const char __user *path, loff_t length);
+FD 194 long sys_ftruncate64(unsigned int fd, loff_t length);
+
+# get file status   
+FI 195 long sys_stat64(const char __user *filename,struct stat64 __user *statbuf);
+FI 196 long sys_lstat64(const char __user *filename,struct stat64 __user *statbuf);
+FD 197 long sys_fstat64(unsigned long fd, struct stat64 __user *statbuf);
+
+# change file ownership
+FI 198 long sys_lchown(const char __user *filename,uid_t user, gid_t group);
+
+# get user/group id.  effective, real, etc.
+ID 199 long sys_getuid(void);
+ID 200 long sys_getgid(void);
+ID 201 long sys_geteuid(void);
+ID 202 long sys_getegid(void);
+ID 203 long sys_setreuid(uid_t ruid, uid_t euid);
+ID 204 long sys_setregid(gid_t rgid, gid_t egid);
+
+# get/set list of supplementary group IDs
+ID 205 long sys_getgroups(int gidsetsize, gid_t __user *grouplist);
+ID 206 long sys_setgroups(int gidsetsize, gid_t __user *grouplist);
+
+# change ownership of file
+FD 207 long sys_fchown(unsigned int fd, uid_t user, gid_t group);
+
+# get/ set real, effective user / group id
+ID 208 long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid);
+ID 209 long sys_getresuid(uid_t __user *ruid, uid_t __user *euid, uid_t __user *suid);
+ID 210 long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid);
+ID 211 long sys_getresgid(gid_t __user *rgid, gid_t __user *egid, gid_t __user *sgid);
+
+# change ownershipt of file
+FI 212 long sys_chown(const char __user *filename,uid_t user, gid_t group);
+
+# set/get user/group id
+ID 213 long sys_setuid(uid_t uid);
+ID 214 long sys_setgid(gid_t gid);
+
+# set/get user/group id for filesystem checks
+ID 215 long sys_setfsuid(uid_t uid);
+ID 216 long sys_setfsgid(gid_t gid);
+
+# change the root filesystem
+FI 217 long sys_pivot_root(const char __user *new_root,const char __user *put_old);
+
+# determine whether pages are resident in memory
+ME 218 long sys_mincore(unsigned long start, size_t len,unsigned char __user * vec);
+
+# give advice about use of memory
+ME 219 long sys_madvise(unsigned long start, size_t len, int behavior);
+
+#  directory entries
+FD 220 long sys_getdents64(unsigned int fd,struct linux_dirent64 __user *dirent,unsigned int count);
+
+# manipulate file descriptor
+FD 221 long sys_fcntl64(unsigned int fd,unsigned int cmd, unsigned long arg);
+
+# get thread identification
+PR 224 long sys_gettid(void);
+
+# perform file readahead into page cache
+FD 225 long sys_readahead(int fd, loff_t offset, size_t count);
+
+# set an extended attribute value (of file)
+# list extended attribute names
+# remove an extended attribute
+FI 226 long sys_setxattr(const char __user *path, const char __user *name,const void __user *value, size_t size, int flags);
+FI 227 long sys_lsetxattr(const char __user *path, const char __user *name,const void __user *value, size_t size, int flags);
+FI 228 long sys_fsetxattr(int fd, const char __user *name,const void __user *value, size_t size, int flags);
+FI 229 long sys_getxattr(const char __user *path, const char __user *name,void __user *value, size_t size);
+FI 230 long sys_lgetxattr(const char __user *path, const char __user *name,void __user *value, size_t size);
+FI 231 long sys_fgetxattr(int fd, const char __user *name,void __user *value, size_t size);
+FI 232 long sys_listxattr(const char __user *path, char __user *list,size_t size);
+FI 233 long sys_llistxattr(const char __user *path, char __user *list,size_t size);
+FI 234 long sys_flistxattr(int fd, char __user *list, size_t size);
+FI 235 long sys_removexattr(const char __user *path,const char __user *name);
+FI 236 long sys_lremovexattr(const char __user *path,const char __user *name);
+FI 237 long sys_fremovexattr(int fd, const char __user *name);
+
+# send a signal to a thread
+PR 238 long sys_tkill(int pid, int sig);
+
+# transfer data between file descriptors
+FD 239 long sys_sendfile64(int out_fd, int in_fd,loff_t __user *offset, size_t count);
+
+# fast user-space locking
+LK 240 long sys_futex(u32 __user *uaddr, int op, u32 val,struct timespec __user *utime, u32 __user *uaddr2,u32 val3);
+
+# set and get a thread's CPU affinity mask (for scheduling)
+PR 241 long sys_sched_setaffinity(pid_t pid, unsigned int len,unsigned long __user *user_mask_ptr);
+PR 242 long sys_sched_getaffinity(pid_t pid, unsigned int len,unsigned long __user *user_mask_ptr);
+
+# set a thread local storage (TKS) area
+ME 243 int set_thread_area(struct user_desc *u_info);
+ME 244 int get_thread_area(struct user_desc *u_info);
+
+# create/destroy an asynchronous I/O context
+LO 245 long sys_io_setup(unsigned nr_reqs, aio_context_t __user *ctx);
+LO 246 long sys_io_destroy(aio_context_t ctx);
+
+# read asynchronous I/O events from the completion queue
+LO 247 long sys_io_getevents(aio_context_t ctx_id,long min_nr,long nr,struct io_event __user *events,struct timespec __user *timeout);
+
+# submit asynchronous I/O blocks for processing
+LO 248 long sys_io_submit(aio_context_t, long,struct iocb __user * __user *);
+
+# cancel an outstanding asynchronous I/O operation
+LO 249 long sys_io_cancel(aio_context_t ctx_id, struct iocb __user *iocb,struct io_event __user *result);
+
+# predeclare an access pattern for file data
+FD 250 long sys_fadvise64(int fd, loff_t offset, size_t len, int advice);
+
+# exit all threads in a process
+PR 252 long sys_exit_group(int error_code);
+
+# return a directory entry's path
+FI 253 long sys_lookup_dcookie(u64 cookie64, char __user *buf, size_t len);
+
+# open an epoll file descriptor
+LO FD 254 long sys_epoll_create(int size);
+
+# control interface for an epoll descriptor
+LO FD 255 long sys_epoll_ctl(int epfd, int op, int fd,struct epoll_event __user *event);
+
+# wait for an I/O event on an epoll file descriptor
+LO FD 256 long sys_epoll_wait(int epfd, struct epoll_event __user *events,int maxevents, int timeout);
+
+# create a nonlinear file mapping
+ME 257 long sys_remap_file_pages(unsigned long start, unsigned long size,unsigned long prot, unsigned long pgoff,unsigned long flags);
+
+# set pointer to thread ID
+PR 258 long sys_set_tid_address(int __user *tidptr);
+
+# as tleast first four are POSIX per-process timer stuff.  i think others (sys_clock_*) are as well
+SI TR 259 long sys_timer_create(clockid_t which_clock,struct sigevent __user *timer_event_spec,timer_t __user * created_timer_id);
+SI TR 260 long sys_timer_settime(timer_t timer_id, int flags,const struct itimerspec __user *new_setting,struct itimerspec __user *old_setting);
+SI TR 261 long sys_timer_gettime(timer_t timer_id,struct itimerspec __user *setting);
+SI TR 262 long sys_timer_getoverrun(timer_t timer_id);
+SI TR 263 long sys_timer_delete(timer_t timer_id);
+SI TR 264 long sys_clock_settime(clockid_t which_clock,const struct timespec __user *tp);
+SI TR 265 long sys_clock_gettime(clockid_t which_clock,struct timespec __user *tp);
+SI TR 266 long sys_clock_getres(clockid_t which_clock,struct timespec __user *tp);
+SI TR 267 long sys_clock_nanosleep(clockid_t which_clock, int flags,const struct timespec __user *rqtp,struct timespec __user *rmtp);
+
+# get filesystem statistics
+FI 268 long sys_statfs64(const char __user *path, size_t sz,struct statfs64 __user *buf);
+FD 269 long sys_fstatfs64(unsigned int fd, size_t sz,struct statfs64 __user *buf);
+
+# send a signal to a thread
+PR 270 long sys_tgkill(int tgid, int pid, int sig);
+
+# change file last access and modification times
+FI 271 long sys_utimes(char __user *filename,struct timeval __user *utimes);
+
+# predeclare an access pattern for file data
+FD 272 long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice);
+
+# set memory policy for a memory range
+ME 274 long sys_mbind(unsigned long start, unsigned long len,unsigned long mode,unsigned long __user *nmask,unsigned long maxnode,unsigned flags);
+
+# retrieve NUMA memory policy for a process
+ME 275 long sys_get_mempolicy(int __user *policy,unsigned long __user *nmask,unsigned long maxnode,unsigned long addr, unsigned long flags);
+
+# set NUMA memory policy for a process
+ME 276 long sys_set_mempolicy(int mode, unsigned long __user *nmask,unsigned long maxnode);
+
+# posix message queue stuff
+IP 277 long sys_mq_open(const char __user *name, int oflag, mode_t mode, struct mq_attr __user *attr);
+IP 278 long sys_mq_unlink(const char __user *name);
+IP 279 long sys_mq_timedsend(mqd_t mqdes, const char __user *msg_ptr, size_t msg_len, unsigned int msg_prio, const struct timespec __user *abs_timeout);
+IP 280 long sys_mq_timedreceive(mqd_t mqdes, char __user *msg_ptr, size_t msg_len, unsigned int __user *msg_prio, const struct timespec __user *abs_timeout);
+IP 281 long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *notification);
+IP 282 long sys_mq_getsetattr(mqd_t mqdes, const struct mq_attr __user *mqstat, struct mq_attr __user *omqstat);
+
+# load a new kernel for later execution
+LO 283 long sys_kexec_load(unsigned long entry, unsigned long nr_segments,struct kexec_segment __user *segments,unsigned long flags);
+
+# wait for process to change state
+PR 284 long sys_waitid(int which, pid_t pid,struct siginfo __user *infop,int options, struct rusage __user *ru);
+
+# add a key to the kernel's key management facility
+LO 286 long sys_add_key(const char __user *_type,const char __user *_description,const void __user *_payload,size_t plen,key_serial_t destringid);
+LO 287 long sys_request_key(const char __user *_type,const char __user *_description,const char __user *_callout_info,key_serial_t destringid);
+LO 288 long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,unsigned long arg4, unsigned long arg5);
+
+# get/set I/O scheduling class and priority
+LO 289 long sys_ioprio_set(int which, int who, int ioprio);
+LO 290 long sys_ioprio_get(int which, int who);
+
+#  inotify stuff (lets you watch for changes to a file or dir (I think)
+FI 291 long sys_inotify_init(void);
+FI 292 long sys_inotify_add_watch(int fd, const char __user *path,u32 mask);
+FI 293 long sys_inotify_rm_watch(int fd, __s32 wd);
+
+#  move all pages in a process to another set of nodes
+ME 294 long sys_migrate_pages(pid_t pid, unsigned long maxnode,const unsigned long __user *from,const unsigned long __user *to);
+
+# weird relative versions of open, mkdir, mknod, etc
+FD FI 295 long sys_openat(int dfd, const char __user *filename, int flags,int mode);
+FD FI 296 long sys_mkdirat(int dfd, const char __user * pathname, int mode);
+FD FI 297 long sys_mknodat(int dfd, const char __user * filename, int mode,unsigned dev);
+FD FI 298 long sys_fchownat(int dfd, const char __user *filename, uid_t user,gid_t group, int flag);
+FD FI 299 long sys_futimesat(int dfd, const char __user *filename,struct timeval __user *utimes);
+FD FI 300 long sys_fstatat64(int dfd, const char __user *filename,struct stat64 __user *statbuf, int flag);
+FD FI 301 long sys_unlinkat(int dfd, const char __user * pathname, int flag);
+FD FI 302 long sys_renameat(int olddfd, const char __user * oldname,int newdfd, const char __user * newname);
+FD FI 303 long sys_linkat(int olddfd, const char __user *oldname,int newdfd, const char __user *newname, int flags);
+FD FI 304 long sys_symlinkat(const char __user * oldname,int newdfd, const char __user * newname);
+FD FI 305 long sys_readlinkat(int dfd, const char __user *path, char __user *buf,int bufsiz);
+FD FI 306 long sys_fchmodat(int dfd, const char __user * filename,mode_t mode);
+FD FI 307 long sys_faccessat(int dfd, const char __user *filename, int mode);
+
+# synchronous I/O multiplexing
+FD 308 long sys_pselect6(int, fd_set __user *, fd_set __user *,fd_set __user *, struct timespec __user *,void __user *);
+
+# wait for some event on a file descriptor
+FD 309 long sys_ppoll(struct pollfd __user *, unsigned int,struct timespec __user *, const sigset_t __user *,size_t);
+
+# disassociate parts of the process execution context
+PR 310 long sys_unshare(unsigned long unshare_flags);
+
+# get/set list of robust futexes
+LK 311 long sys_set_robust_list(struct robust_list_head __user *head,size_t len);
+LK 312 long sys_get_robust_list(int pid,struct robust_list_head __user * __user *head_ptr,size_t __user *len_ptr);
+
+# splice data to/from a pipe 
+FD 313 long sys_splice(int fd_in, loff_t __user *off_in,int fd_out, loff_t __user *off_out,size_t len, unsigned int flags);
+
+# sync a file segment with disk
+FD 314 long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,unsigned int flags);
+
+# duplicating pipe content
+FD 315 long sys_tee(int fdin, int fdout, size_t len, unsigned int flags);
+
+# splice user pages into a pipe
+MDF 316 long sys_vmsplice(int fd, const struct iovec __user *iov,unsigned long nr_segs, unsigned int flags);
+
+# move individual pages of a process to another node
+ME 317 long sys_move_pages(pid_t pid, unsigned long nr_pages,const void __user * __user *pages,const int __user *nodes,int __user *status,int flags);
+
+# determine CPU and NUMA node on which the calling thread is running
+LO 318 long sys_getcpu(unsigned __user *cpu, unsigned __user *node, struct getcpu_cache __user *cache);
+
+# wait for an I/O event on an epoll file descriptor
+LO FD 319 long sys_epoll_pwait(int epfd, struct epoll_event __user *events,int maxevents, int timeout,const sigset_t __user *sigmask,size_t sigsetsize);
+
+# change file timestamps with nanosecond precision
+FD FI 320 long sys_utimensat(int dfd, const char __user *filename,struct timespec __user *utimes, int flags);
+
+# create a file descriptor for accepting signals
+FD SI 321 long sys_signalfd(int ufd, sigset_t __user *user_mask, size_t sizemask);
+
+# timers that notify via file descriptors
+TR FD 322 long sys_timerfd_create(int clockid, int flags);
+TR FD 323 long sys_eventfd(unsigned int count);
+
+# manipulate file space
+FD 324 long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
+
+# more timer fd stuff
+FD TR 325 long sys_timerfd_settime(int ufd, int flags,const struct itimerspec __user *utmr,struct itimerspec __user *otmr);
+FD TR 326 long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+
+# signals
+SI 327    long sys_signalfd4(int ufd, sigset_t __user *user_mask, size_t sizemask, int flags);
+FD SI 328 long sys_eventfd2(unsigned int count, int flags);
+LO FD 329 long sys_epoll_create1(int flags);
+
+# fd stuff
+FD 330 long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags);
+FD 331 long sys_pipe2(int __user *fildes, int flags);
+
+# inotify 
+FI 332 long sys_inotify_init1(int flags);
+
+# read/write
+FD 333 long sys_preadv(unsigned long fd, const struct iovec __user *vec,unsigned long vlen, unsigned long pos_l, unsigned long pos_h);
+FD 334 long sys_pwritev(unsigned long fd, const struct iovec __user *vec,unsigned long vlen, unsigned long pos_l, unsigned long pos_h);
+
+# wtf?
+SI 335 long sys_rt_tgsigqueueinfo(pid_t tgid, pid_t  pid, int sig,siginfo_t __user *uinfo);
+
+# performance monitor
+PR 336 long sys_perf_event_open(struct perf_event_attr __user *attr_uptr,pid_t pid, int cpu, int group_fd, unsigned long flags);
+
+# receive multiple messages on a socket
+NE IP 337 long sys_recvmmsg(int fd, struct mmsghdr __user *msg,unsigned int vlen, unsigned flags,struct timespec __user *timeout);
+
+# notify files stuff
+FI 338 long sys_fanotify_init(unsigned int flags, unsigned int event_f_flags);
+FI 339 long sys_fanotify_mark(int fanotify_fd, unsigned int flags,u64 mask, int fd,const char  __user *pathname);
+
+# process limits
+PR 340 long sys_prlimit64(pid_t pid, unsigned int resource,const struct rlimit64 __user *new_rlim,struct rlimit64 __user *old_rlim);
+
+# names and fd
+FD FI 341 long sys_name_to_handle_at(int dfd, const char __user *name,struct file_handle __user *handle,int __user *mnt_id, int flag);
+FD    342 long sys_open_by_handle_at(int mountdirfd,struct file_handle __user *handle,int flags);
+
+# adj system time
+TI 343 long sys_clock_adjtime(clockid_t which_clock,struct timex __user *tx);
+
+# commit buffer cache to disk
+FD FI 344 long sys_syncfs(int fd);
+
+# send multiple messages on a socket
+NE IP 345 long sys_sendmmsg(int fd, struct mmsghdr __user *msg,unsigned int vlen, unsigned flags);
+
+# reassociate thread with a namespace
+PR 346 long sys_setns(int fd, int nstype);
+
+# transfer data between process address spaces
+ME PR 347 long sys_process_vm_readv(pid_t pid,const struct iovec __user *lvec,unsigned long liovcnt,const struct iovec __user *rvec,unsigned long riovcnt,unsigned long flags);
+ME PR 348 long sys_process_vm_writev(pid_t pid,const struct iovec __user *lvec,unsigned long liovcnt,const struct iovec __user *rvec,unsigned long riovcnt,unsigned long flags);
