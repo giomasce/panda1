@@ -1196,7 +1196,13 @@ void dwarf_log_callsite(CPUState *env, char *file_callee, char *fn_callee, uint6
    
     //void dwarfp_plog(char *file_callee, char *fn_callee, uint64_t lno_callee, char *file_caller, uint64_t lno_caller, bool isCall)
     dwarfp_plog(file_callee, fn_callee, lno_callee, file_name, lno, isCall);
-    printf(" Callsite: [%s] [0x%llx]-%s(), ln: %4lld, pc @ 0x%x\n",file_name,call_site_fn, funct_name.c_str(),lno,ra);
+    if (isCall) {
+        printf(" CALL: [%s] [0x%llx]-%s(), ln: %4lld, pc @ 0x%x\n",file_name,call_site_fn, funct_name.c_str(),lno,ra);
+    }
+    else {
+        printf(" RET: [%s] [0x%llx]-%s(), ln: %4lld, pc @ 0x%x\n",file_name,call_site_fn, funct_name.c_str(),lno,ra);
+
+    }
     
     return;
 }
