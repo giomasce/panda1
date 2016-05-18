@@ -148,7 +148,7 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
     }
     if (!panda_in_kernel(env)) {
         if (0 != strstr(current_proc->name, effects_proc_name)) {             
-            printf ("in user: current_proc->name = %s pc=0x" TARGET_FMT_lx "\n", current_proc->name, tb->pc);
+            //            printf ("in user: current_proc->name = %s pc=0x" TARGET_FMT_lx "\n", current_proc->name, tb->pc);
             last_user_pc = tb->pc;
         }
     }
@@ -164,8 +164,8 @@ void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) 
             // current proc is the one we care about
             printf ("all_sys_enter: instr=%" PRId64 " pc=0x" TARGET_FMT_lx "\n" , rr_get_guest_instr_count(), pc);
             printf (": ord=%4d effect=[%s] \n", (int) syscall_number, sys_effect[syscall_number]);
-            target_ulong callers[32];
-            int n = get_callers(callers, 32, env);
+            target_ulong callers[1024];
+            int n = get_callers(callers, 1024, env);
             printf ("call stack is %d\n", n);
             printf ("current_proc=%s \n", current_proc->name);
             printf ("current_libs %d\n", current_libs->num);            
@@ -178,8 +178,8 @@ void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) 
                             printf ("MATCH i=%d pc=0x" TARGET_FMT_lx" [" TARGET_FMT_lx".." TARGET_FMT_lx"] name=%s lib=%s : ", 
                                     i, pc, m->base, m->base + m->size, m->name, m->file);
                             PC_Info info;
-                            int rv = stpi_get_source_info(env, pc, &info);
-                            if (rv == 0) printf ("CODE LOC: (%s, %s, %d)\n", info.filename, info.funname, info.line);
+                            int rv = stpi_get_pc_source_info(env, pc, &info);
+                            if (rv == 0) printf ("CODE LOC: (%s, %s, %d)\n", info.filename, info.funct_name, info.line_number);
                             else printf ("CODE LOC: unknown\n");
                         }
                     }
@@ -192,8 +192,8 @@ void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) 
 
 void rw_message(const char *msg, CPUState *env, target_ulong pc) {
     PC_Info info;
-    int rv = stpi_get_source_info(env, pc, &info);
-    if (rv == 0) printf ("RWV_EFFECT: %s : CODE_LOC (%s, %s, %d)\n", info.filename, info.funname, info.line);
+    int rv = stpi_get_pc_source_info(env, pc, &info);
+    if (rv == 0) printf ("RWV_EFFECT: %s : CODE_LOC (%s, %s, %d)\n", info.filename, info.funct_name, info.line_number);
     else printf ("CODE LOC: unknown\n");
 }
 
