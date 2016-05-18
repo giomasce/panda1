@@ -97,7 +97,7 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
     // NB: we only really know the current process when we are in kernel
     if (bbbexec_check_proc) {
         if (panda_in_kernel(env)) {
-            printf ("in kernel\n");
+            //printf ("in kernel\n");
             OsiProc *p = get_current_process(env);
             //some sanity checks on what we think the current process is
             // this means we didnt find current task 
@@ -123,7 +123,7 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
                     current_proc = NULL;
                 }
                 current_proc = copy_osiproc_g(p, current_proc);
-                printf ("proc changed to [%s]\n", current_proc->name);
+                //printf ("proc changed to [%s]\n", current_proc->name);
             }
             free_osiproc(p);
             // turn this off until next asid change
@@ -146,12 +146,14 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
             }
         } // in kernel
     }
+   
     if (!panda_in_kernel(env)) {
-        if (0 != strstr(current_proc->name, effects_proc_name)) {             
+        if (current_proc && 0 != strstr(current_proc->name, effects_proc_name)) {             
             //            printf ("in user: current_proc->name = %s pc=0x" TARGET_FMT_lx "\n", current_proc->name, tb->pc);
             last_user_pc = tb->pc;
         }
     }
+    
     return 0;
 }
 
@@ -168,8 +170,8 @@ void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) 
             int n = get_callers(callers, 1024, env);
             printf ("call stack is %d\n", n);
             printf ("current_proc=%s \n", current_proc->name);
-            printf ("current_libs %d\n", current_libs->num);            
             if (current_libs) {
+                printf ("current_libs %d\n", current_libs->num);            
                 for (int i=0; i<n; i++) {
                     target_ulong pc = callers[i];
                     for (unsigned j=0; j<current_libs->num; j++) {

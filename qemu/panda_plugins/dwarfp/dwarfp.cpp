@@ -1182,8 +1182,8 @@ void dwarf_log_callsite(CPUState *env, char *file_callee, char *fn_callee, uint6
     ra -= 5; // subtract 5 to get address of call instead of return address
     auto it = std::lower_bound(line_range_list.begin(), line_range_list.end(), ra, CompareRangeAndPC());
     if (ra < it->lowpc || it == line_range_list.end()){
-        printf("No DWARF information for callsite 0x%x for current function.\n", ra);
-        printf("Callsite must be in an external library we do not have DWARF information for.\n");
+        //printf("No DWARF information for callsite 0x%x for current function.\n", ra);
+        //printf("Callsite must be in an external library we do not have DWARF information for.\n");
         return;
     }
     //                      lowpc       highpc        line no       filename  function addr
