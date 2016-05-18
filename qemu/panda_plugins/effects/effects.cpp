@@ -46,6 +46,11 @@ void uninit_plugin(void *);
               
 }
 
+#include "../stpi/stpi_types.h"
+#include "../stpi/stpi_ext.h"
+#include "../dwarfp/dwarfp_ext.h"
+
+
 #include "../common/prog_point.h"
 #include "../callstack_instr/callstack_instr_ext.h"
 
@@ -131,7 +136,7 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
                 }
                 current_libs = get_libraries(env, current_proc);
                 if (current_libs) {
-                    for (int i=0; i<current_libs->num; i++) {
+                    for (unsigned i=0; i<current_libs->num; i++) {
                         OsiModule *m = &(current_libs->module[i]);   
                         if (tb->pc >= m->base && tb->pc < (m->base + m->size)) {
                             current_lib = m;
@@ -143,42 +148,12 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
     }
     if (!panda_in_kernel(env)) {
         if (0 != strstr(current_proc->name, effects_proc_name)) {             
-            printf ("in user: current_proc->name = %s pc=0x%x\n", current_proc->name, tb->pc);
+            printf ("in user: current_proc->name = %s pc=0x" TARGET_FMT_lx "\n", current_proc->name, tb->pc);
             last_user_pc = tb->pc;
         }
-        /*
-        if (current_libs 
-            && (0 != strstr(current_proc->name, effects_proc_name))) {              
-            //            printf ("and have libs %d\n", current_libs->num);
-            // we are in user code.  let's figure out if its part of the code for the program we care about
-            target_ulong callers[32];
-            int n = get_callers(callers, 32, env);
-            //            printf ("call stack is %d\n", n);
-            if (0==1) {
-                for (int i=0; i<n; i++) {
-                    target_ulong pc = callers[i];
-                    printf ("%d pc=0x%x : ", i, (unsigned int) pc);
-                    for (unsigned j=0; j<current_libs->num; j++) {
-                        OsiModule *m = &(current_libs->module[j]);
-                        printf ("lib %x .. %x  %s\n", m->base, m->base + m->size, m->file);
-                        if (pc >= m->base && pc < (m->base + m->size)) {
-                            printf ("pc=0x%x lib=%s", pc, m->file);
-                        }
-                    }
-                    printf ("\n");
-                }
-            }
-        }
-        */
-        //bbbexec_check_proc = false; 
     }
-
-
     return 0;
 }
-
-
-
 
 
 void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) {
@@ -187,52 +162,50 @@ void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) 
         //        printf ("proc_known ");
         if (0 != strstr(current_proc->name, effects_proc_name)) {
             // current proc is the one we care about
-            printf ("all_sys_enter: instr=%" PRId64 " pc=0x%x" , rr_get_guest_instr_count(), pc);
+            printf ("all_sys_enter: instr=%" PRId64 " pc=0x" TARGET_FMT_lx "\n" , rr_get_guest_instr_count(), pc);
             printf (": ord=%4d effect=[%s] \n", (int) syscall_number, sys_effect[syscall_number]);
             target_ulong callers[32];
             int n = get_callers(callers, 32, env);
             printf ("call stack is %d\n", n);
-            /*
-            OsiProc *proc = get_current_process(env);
-            OsiModules *libs = get_libraries(env, proc);
-            printf ("proc=0x%x libs=0x%x\n", proc, libs);
-            printf ("current_proc=%x %s \n", current_proc, current_proc->name);
-            printf ("in kernel = %d\n", panda_in_kernel(env));
-            */
-            printf ("current_proc=%x %s \n", current_proc, current_proc->name);
-            printf ("current_libs=%x %d\n", current_libs, current_libs->num);
-            
+            printf ("current_proc=%s \n", current_proc->name);
+            printf ("current_libs %d\n", current_libs->num);            
             if (current_libs) {
                 for (int i=0; i<n; i++) {
                     target_ulong pc = callers[i];
-                    for (int j=0; j<current_libs->num; j++) {
+                    for (unsigned j=0; j<current_libs->num; j++) {
                         OsiModule *m = &(current_libs->module[j]);
                         if (pc >= m->base && pc < (m->base + m->size)) {
-                            printf ("MATCH i=%d pc=0x%x [%x..%x] name=%s lib=%s\n", 
+                            printf ("MATCH i=%d pc=0x" TARGET_FMT_lx" [" TARGET_FMT_lx".." TARGET_FMT_lx"] name=%s lib=%s : ", 
                                     i, pc, m->base, m->base + m->size, m->name, m->file);
+                            PC_Info info;
+                            int rv = stpi_get_source_info(env, pc, &info);
+                            if (rv == 0) printf ("CODE LOC: (%s, %s, %d)\n", info.filename, info.funname, info.line);
+                            else printf ("CODE LOC: unknown\n");
                         }
                     }
                 }
-            }
-                
-
-        }
-        else {
-            //            printf ("not_effects_proc ");
+            }                
         }
     }
-    else {
-        //        printf ("proc_not_known ");
-    }
-    //    printf ("\n");
-
-    /*
-    Panda__LogEntry ple = PANDA__LOG_ENTRY__INIT;
-    ple.has_nt_any_syscall = 1;
-    ple.nt_any_syscall = syscall_number;
-    pandalog_write_entry(&ple);
-    */
 }
+
+
+void rw_message(const char *msg, CPUState *env, target_ulong pc) {
+    PC_Info info;
+    int rv = stpi_get_source_info(env, pc, &info);
+    if (rv == 0) printf ("RWV_EFFECT: %s : CODE_LOC (%s, %s, %d)\n", info.filename, info.funname, info.line);
+    else printf ("CODE LOC: unknown\n");
+}
+
+int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr,
+                       target_ulong size, void *buf) {
+    rw_message("WRITE", env, pc);    
+}
+
+int mem_read_callback(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf) {
+    rw_message("READ", env, pc);        
+}
+
 
 bool init_plugin(void *self) {
     printf("Initializing plugin effects\n");
@@ -261,6 +234,12 @@ bool init_plugin(void *self) {
 
     panda_require("callstack_instr");
     if(!init_callstack_instr_api()) return false;
+
+    panda_require("dwarfp");
+    assert (init_dwarfp_api());
+
+    panda_require("stpi");
+    assert (init_stpi_api());
 
     /*
     pcb.virt_mem_write = mem_write_callback;
