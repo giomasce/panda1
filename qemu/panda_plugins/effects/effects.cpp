@@ -39,16 +39,23 @@ extern "C" {
 #include "../osi/osi_types.h"
 #include "../osi/osi_ext.h"
 
+#include "sys_effects.h"
+
 bool init_plugin(void *);
 void uninit_plugin(void *);
               
 }
+
+#include "../common/prog_point.h"
+#include "../callstack_instr/callstack_instr_ext.h"
 
 // name of the process we want effects for
 const char *effects_proc_name = NULL;
 
 // current process
 OsiProc *current_proc = NULL;
+OsiModule *current_lib = NULL;
+OsiModules *current_libs = NULL;
 
 bool bbbexec_check_proc = false;
 
@@ -58,6 +65,8 @@ int asid_changed(CPUState *env, target_ulong old_asid, target_ulong new_asid) {
     if (current_proc) {
         free_osiproc(current_proc);
         current_proc = NULL;
+        current_libs = NULL;
+        current_lib = NULL;
     }
     return 0;
 }
@@ -75,48 +84,95 @@ bool proc_diff(OsiProc *p_curr, OsiProc *p_new) {
     return false;
 }
 
+bool proc_changed = false;
+
+target_ulong last_user_pc = 0;
+
 int osi_foo(CPUState *env, TranslationBlock *tb) {
-    // NB: we only really know the current process when we are in kernel                                                                                                                                                                                                                                                   
-    bool proc_changed = false;
-    if (bbbexec_check_proc && panda_in_kernel(env)) {
-        OsiProc *p = get_current_process(env);
-        //some sanity checks on what we think the current process is
-        // this means we didnt find current task 
-        if (p->offset == 0) return 0;
-        // or the name 
-        if (p->name == 0) return 0;
-        // weird -- this is just not ok 
-        if (((int) p->pid) == -1) return 0;
-        uint32_t n = strnlen(p->name, 32);
-        // yuck -- name is one char 
-        if (n<2) return 0;
-        uint32_t np = 0;
-        for (uint32_t i=0; i<n; i++) {
-            np += (isprint(p->name[i]) != 0);
-        }
-        // yuck -- name doesnt consist of solely printable characters
-        if (np != n) return 0;
-        // we have a valid process
-        proc_changed = proc_diff(current_proc, p);
-        if (proc_changed) {
-            if (current_proc != NULL) {
-                free_osiproc(current_proc);
-                current_proc = NULL;
+    // NB: we only really know the current process when we are in kernel
+    if (bbbexec_check_proc) {
+        if (panda_in_kernel(env)) {
+            printf ("in kernel\n");
+            OsiProc *p = get_current_process(env);
+            //some sanity checks on what we think the current process is
+            // this means we didnt find current task 
+            if (p->offset == 0) return 0;
+            // or the name 
+            if (p->name == 0) return 0;
+            // weird -- this is just not ok 
+            if (((int) p->pid) == -1) return 0;
+            uint32_t n = strnlen(p->name, 32);
+            // yuck -- name is one char 
+            if (n<2) return 0;
+            uint32_t np = 0;
+            for (uint32_t i=0; i<n; i++) {
+                np += (isprint(p->name[i]) != 0);
             }
-            current_proc = copy_osiproc_g(p, current_proc);
-        }
-        free_osiproc(p);
-        // turn this off until next asid change
-        bbbexec_check_proc = false;
+            // yuck -- name doesnt consist of solely printable characters
+            if (np != n) return 0;
+            // we have a valid process
+            proc_changed = proc_diff(current_proc, p);
+            if (proc_changed) {
+                if (current_proc != NULL) {
+                    free_osiproc(current_proc);
+                    current_proc = NULL;
+                }
+                current_proc = copy_osiproc_g(p, current_proc);
+                printf ("proc changed to [%s]\n", current_proc->name);
+            }
+            free_osiproc(p);
+            // turn this off until next asid change
+            bbbexec_check_proc = false;                
+            if (current_proc != NULL && proc_changed) {
+                // if we get here, we have a valid proc in current_proc 
+                // that is new.  That is, we believe process has changed 
+                if (current_libs) {
+                    free_osimodules(current_libs);
+                }
+                current_libs = get_libraries(env, current_proc);
+                if (current_libs) {
+                    for (int i=0; i<current_libs->num; i++) {
+                        OsiModule *m = &(current_libs->module[i]);   
+                        if (tb->pc >= m->base && tb->pc < (m->base + m->size)) {
+                            current_lib = m;
+                        }
+                    }
+                }
+            }
+        } // in kernel
     }
-    if (current_proc != NULL && proc_changed) {
-        // if we get here, we have a valid proc in current_proc 
-        // that is new.  That is, we believe process has changed 
-        OsiModules *libs = get_libraries(env, current_proc);
-        if (libs) {
-            free_osimodules(libs);
+    if (!panda_in_kernel(env)) {
+        if (0 != strstr(current_proc->name, effects_proc_name)) {             
+            printf ("in user: current_proc->name = %s pc=0x%x\n", current_proc->name, tb->pc);
+            last_user_pc = tb->pc;
         }
+        /*
+        if (current_libs 
+            && (0 != strstr(current_proc->name, effects_proc_name))) {              
+            //            printf ("and have libs %d\n", current_libs->num);
+            // we are in user code.  let's figure out if its part of the code for the program we care about
+            target_ulong callers[32];
+            int n = get_callers(callers, 32, env);
+            //            printf ("call stack is %d\n", n);
+            if (0==1) {
+                for (int i=0; i<n; i++) {
+                    target_ulong pc = callers[i];
+                    printf ("%d pc=0x%x : ", i, (unsigned int) pc);
+                    for (unsigned j=0; j<current_libs->num; j++) {
+                        OsiModule *m = &(current_libs->module[j]);
+                        printf ("lib %x .. %x  %s\n", m->base, m->base + m->size, m->file);
+                        if (pc >= m->base && pc < (m->base + m->size)) {
+                            printf ("pc=0x%x lib=%s", pc, m->file);
+                        }
+                    }
+                    printf ("\n");
+                }
+            }
+        }
+        */
+        //bbbexec_check_proc = false; 
     }
+
 
     return 0;
 }
@@ -127,21 +183,48 @@ int osi_foo(CPUState *env, TranslationBlock *tb) {
 
 void all_sys_enter(CPUState* env, target_ulong pc, target_ulong syscall_number) {
     // we need to know what process we are 'in'...
-    printf ("all_sys_enter: ");
     if (current_proc) {
-        printf ("proc_known ");
+        //        printf ("proc_known ");
         if (0 != strstr(current_proc->name, effects_proc_name)) {
             // current proc is the one we care about
-            printf ("effects_proc [%s]: ord=%d ", effects_proc_name, syscall_number);
+            printf ("all_sys_enter: instr=%" PRId64 " pc=0x%x" , rr_get_guest_instr_count(), pc);
+            printf (": ord=%4d effect=[%s] \n", (int) syscall_number, sys_effect[syscall_number]);
+            target_ulong callers[32];
+            int n = get_callers(callers, 32, env);
+            printf ("call stack is %d\n", n);
+            /*
+            OsiProc *proc = get_current_process(env);
+            OsiModules *libs = get_libraries(env, proc);
+            printf ("proc=0x%x libs=0x%x\n", proc, libs);
+            printf ("current_proc=%x %s \n", current_proc, current_proc->name);
+            printf ("in kernel = %d\n", panda_in_kernel(env));
+            */
+            printf ("current_proc=%x %s \n", current_proc, current_proc->name);
+            printf ("current_libs=%x %d\n", current_libs, current_libs->num);
+            
+            if (current_libs) {
+                for (int i=0; i<n; i++) {
+                    target_ulong pc = callers[i];
+                    for (int j=0; j<current_libs->num; j++) {
+                        OsiModule *m = &(current_libs->module[j]);
+                        if (pc >= m->base && pc < (m->base + m->size)) {
+                            printf ("MATCH i=%d pc=0x%x [%x..%x] name=%s lib=%s\n", 
+                                    i, pc, m->base, m->base + m->size, m->name, m->file);
+                        }
+                    }
+                }
+            }
+                
+
         }
         else {
-            printf ("not_effects_proc ");
+            //            printf ("not_effects_proc ");
         }
     }
     else {
-        printf ("proc_not_known ");
+        //        printf ("proc_not_known ");
     }
-    printf ("\n");
+    //    printf ("\n");
 
     /*
     Panda__LogEntry ple = PANDA__LOG_ENTRY__INIT;
@@ -176,6 +259,9 @@ bool init_plugin(void *self) {
     panda_require("osi");
     assert(init_osi_api());
 
+    panda_require("callstack_instr");
+    if(!init_callstack_instr_api()) return false;
+
     /*
     pcb.virt_mem_write = mem_write_callback;
     panda_register_callback(self, PANDA_CB_VIRT_MEM_WRITE, pcb);
@@ -186,6 +272,7 @@ bool init_plugin(void *self) {
     panda_require("syscalls2");   
     PPP_REG_CB("syscalls2", on_all_sys_enter, all_sys_enter);
     printf("finished adding win7proc syscall hooks\n");
+    
     return true;
 #else
     fprintf(stderr, "Plugin is not supported on this platform.\n");

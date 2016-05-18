@@ -50,9 +50,9 @@ rehosting
 coverage
 effects
 stpi
-dwarfp
-dwarf_taint
-dwarf_simple
+#dwarfp
+#dwarf_taint
+#dwarf_simple
 #strace
-loaded
+#loaded
 wintrospection

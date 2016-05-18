@@ -707,7 +707,7 @@ FD 314 long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,unsigned in
 FD 315 long sys_tee(int fdin, int fdout, size_t len, unsigned int flags);
 
 # splice user pages into a pipe
-MDF 316 long sys_vmsplice(int fd, const struct iovec __user *iov,unsigned long nr_segs, unsigned int flags);
+FD ME 316 long sys_vmsplice(int fd, const struct iovec __user *iov,unsigned long nr_segs, unsigned int flags);
 
 # move individual pages of a process to another node
 ME 317 long sys_move_pages(pid_t pid, unsigned long nr_pages,const void __user * __user *pages,const int __user *nodes,int __user *status,int flags);
