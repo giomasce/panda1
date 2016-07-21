@@ -34,11 +34,14 @@
 
 #include <algorithm>
 #include <map>
+#include <vector>
 #include <set>
 #include <cstdint>
 #include <cstring>
 #include <sstream>
 #include <iomanip>
+
+#include <cmath>
 
 extern "C" {
 

@@ -70,8 +70,8 @@ void on_global_livevar_iter(CPUState *env, target_ulong pc, liveVarCB f, void *a
 #include <unistd.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <dwarf.h>
-#include <libdwarf.h>
+#include <libdwarf/dwarf.h>
+#include <libdwarf/libdwarf.h>
 
 }
 #include "../callstack_instr/callstack_instr.h"

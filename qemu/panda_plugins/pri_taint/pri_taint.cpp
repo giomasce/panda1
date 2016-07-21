@@ -5,6 +5,7 @@
 #include "../taint2/taint2.h"
 #include "../common/prog_point.h"
 
+#include <vector>
 #include <algorithm>
 
 extern "C" {
