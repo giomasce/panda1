@@ -19,7 +19,7 @@ llvm_trace
 callstack_instr
 textprinter_fast
 tstringsearch
-#network
+network
 scissors
 taint_compute_numbers
 bir
