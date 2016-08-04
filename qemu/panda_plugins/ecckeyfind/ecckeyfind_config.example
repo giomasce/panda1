@@ -1,0 +1,7 @@
+p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f
+a: 0
+b: 7
+g1: 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
+g2: 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+pub1: 0xc215aa61a2ee4cf174068f33fa58de9a5af6b95bc318e5369bebeefd00766cfe
+pub2: 0xbd76f2b9200f7b530a79ae58098463931c349f2dbafd5b222d744a099c13b73a
