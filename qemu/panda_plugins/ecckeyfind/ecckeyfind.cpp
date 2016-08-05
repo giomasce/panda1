@@ -102,7 +102,7 @@ int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr,
         }
         if (likely(k->filled)) {
           const unsigned char *attempt = &k->key[k->start];
-          bool match = cryptocurve_check_private_key_str(&crypto_curve, (char*) attempt, &pub);
+          bool match = cryptocurve_check_private_key_raw(&crypto_curve, (char*) attempt, &pub);
 
             if (unlikely(match)) {
                 fprintf(stderr, "ECC match found at " TARGET_FMT_lx " " TARGET_FMT_lx " " TARGET_FMT_lx "\n",

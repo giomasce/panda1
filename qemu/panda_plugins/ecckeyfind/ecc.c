@@ -431,6 +431,7 @@ bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, const 
   mpz_t priv_mpz;
   mpz_init(priv_mpz);
   mpz_import(priv_mpz, cc->size_bytes, 1, 1, 1, 0, priv);
+  //gmp_fprintf(stderr, "Trying secret key %#Zx\n", priv_mpz);
   return cryptocurve_check_private_key(cc, priv_mpz, pub);
   mpz_clear(priv_mpz);
 }
