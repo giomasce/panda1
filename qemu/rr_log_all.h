@@ -666,14 +666,14 @@ typedef enum {
   HD_TRANSFER_RAM_TO_HD
 } Hd_transfer_type;
 
-/*
 static const char *hd_transfer_str[] = {
   "HD_TRANSFER_HD_TO_IOB",
   "HD_TRANSFER_IOB_TO_HD",
   "HD_TRANSFER_PORT_TO_IOB",
-  "HD_TRANSFER_IOB_TO_PORT"
+  "HD_TRANSFER_IOB_TO_PORT",
+  "HD_TRANSFER_HD_TO_RAM",
+  "HD_TRANSFER_RAM_TO_HD"
 };
-*/
 
 // structure for arguments to hd_transfer
 typedef struct {
@@ -694,6 +694,12 @@ typedef enum {
   NET_TRANSFER_IOB_TO_RAM,
   NET_TRANSFER_IOB_TO_IOB
 } Net_transfer_type;
+
+static const char *net_transfer_str[] = {
+  "NET_TRANSFER_RAM_TO_IOB",
+  "NET_TRANSFER_IOB_TO_RAM",
+  "NET_TRANSFER_IOB_TO_IOB"
+};
 
 // structure for arguments to net_transfer
 typedef struct {

@@ -7,6 +7,8 @@
 #include "cpu.h"
 #include "rr_log.h"
 
+#define BUFFER_DUMP_LEN 60
+
 /******************************************************************************************/
 /* GLOBALS */
 /******************************************************************************************/
@@ -45,7 +47,7 @@ char * rr_requested_name = NULL;
 
 // write this program point to this file 
 static void rr_spit_prog_point_fp(FILE *fp, RR_prog_point pp) {
-  fprintf(fp, "{guest_instr_count=%llu pc=0x%08llx, secondary=0x%08llx}\n", 
+  fprintf(fp, "{instr=%010llu, pc=0x%016llx, sec=0x%016llx} ", 
       (unsigned long long)pp.guest_instr_count,
 	  (unsigned long long)pp.pc,
 	  (unsigned long long)pp.secondary);
@@ -55,26 +57,42 @@ void rr_spit_prog_point(RR_prog_point pp) {
   rr_spit_prog_point_fp(stdout,pp);
 }
 
+void rr_spit_buffer(uint8_t *buf, uint64_t len);
+void rr_spit_buffer(uint8_t *buf, uint64_t len) {
+
+    printf("\tBuffer:");
+    int i;
+    for (i = 0; i < len && i < BUFFER_DUMP_LEN; i++) {
+        printf(" %02x", buf[i]);
+    }
+    if (len > BUFFER_DUMP_LEN) {
+        printf(" ... \n");
+    } else {
+        printf("\n");
+    }
+
+}
+
 static void rr_spit_log_entry(RR_log_entry item) {
     rr_spit_prog_point(item.header.prog_point);
     switch (item.header.kind) {
         case RR_INPUT_1:
-            printf("\tRR_INPUT_1 %d from %s\n", item.variant.input_1, get_callsite_string(item.header.callsite_loc));
+            printf("RR_INPUT_1 0x%02x from %s\n", item.variant.input_1, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_INPUT_2:
-            printf("\tRR_INPUT_2 %d from %s\n", item.variant.input_2, get_callsite_string(item.header.callsite_loc));
+            printf("RR_INPUT_2 0x%04x from %s\n", item.variant.input_2, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_INPUT_4:
-            printf("\tRR_INPUT_4 %d from %s\n", item.variant.input_4, get_callsite_string(item.header.callsite_loc));
+            printf("RR_INPUT_4 0x%08x from %s\n", item.variant.input_4, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_INPUT_8:
-            printf("\tRR_INPUT_8 %ld from %s\n", item.variant.input_8, get_callsite_string(item.header.callsite_loc));
+            printf("RR_INPUT_8 0x%016lx from %s\n", item.variant.input_8, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_INTERRUPT_REQUEST:
-            printf("\tRR_INTERRUPT_REQUEST_%d from %s\n", item.variant.interrupt_request, get_callsite_string(item.header.callsite_loc));
+            printf("RR_INTERRUPT_REQUEST %d from %s\n", item.variant.interrupt_request, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_EXIT_REQUEST:
-            printf("\tRR_EXIT_REQUEST_%d from %s\n", item.variant.exit_request, get_callsite_string(item.header.callsite_loc));
+            printf("RR_EXIT_REQUEST %d from %s\n", item.variant.exit_request, get_callsite_string(item.header.callsite_loc));
             break;
         case RR_SKIPPED_CALL:
             {
@@ -82,54 +100,82 @@ static void rr_spit_log_entry(RR_log_entry item) {
                 int callbytes = -1;
                 switch (item.variant.call_args.kind) {
                     case RR_CALL_CPU_MEM_RW:
-                        printf("This is a memory write. Target memory address: %lx, length: %d\n",
+                        printf("RR_SKIPPED_CALL %s (addr: 0x%lx, len: %d) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
                                args->variant.cpu_mem_rw_args.addr,
-                               args->variant.cpu_mem_rw_args.len);
-                        printf("Buffer:");
-                        int i;
-                        for (i = 0; i < args->variant.cpu_mem_rw_args.len && i < 16; i++) {
-                            printf(" %02x", args->variant.cpu_mem_rw_args.buf[i]);
-                        }
-                        if (args->variant.cpu_mem_rw_args.len >= 16) {
-                            printf(" ... \n");
-                        } else {
-                            printf("\n");
-                        }
+                               args->variant.cpu_mem_rw_args.len,
+                               get_callsite_string(item.header.callsite_loc));
+                        rr_spit_buffer(args->variant.cpu_mem_rw_args.buf, args->variant.cpu_mem_rw_args.len);
                         callbytes = sizeof(args->variant.cpu_mem_rw_args) + args->variant.cpu_mem_rw_args.len;
                         break;
                     case RR_CALL_CPU_REG_MEM_REGION:
+                        printf("RR_SKIPPED_CALL %s (start: 0x%lx, size: 0x%lx, phys_off: 0x%lx) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               args->variant.cpu_mem_reg_region_args.start_addr,
+                               args->variant.cpu_mem_reg_region_args.size,
+                               args->variant.cpu_mem_reg_region_args.phys_offset,
+                               get_callsite_string(item.header.callsite_loc));
                         callbytes = sizeof(args->variant.cpu_mem_reg_region_args);
                         break;
                     case RR_CALL_CPU_MEM_UNMAP:
+                        printf("RR_SKIPPED_CALL %s (addr: 0x%lx, len: %ld) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               args->variant.cpu_mem_unmap.addr,
+                               args->variant.cpu_mem_unmap.len,
+                               get_callsite_string(item.header.callsite_loc));
+                        rr_spit_buffer(args->variant.cpu_mem_unmap.buf, args->variant.cpu_mem_unmap.len);
                         callbytes = sizeof(args->variant.cpu_mem_unmap) + args->variant.cpu_mem_unmap.len;
                         break;
                     case RR_CALL_HD_TRANSFER:
+                        printf("RR_SKIPPED_CALL %s (%s, src: 0x%lx, dst: 0x%lx, len: %d) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               hd_transfer_str[args->variant.hd_transfer_args.type],
+                               args->variant.hd_transfer_args.src_addr,
+                               args->variant.hd_transfer_args.dest_addr,
+                               args->variant.hd_transfer_args.num_bytes,
+                               get_callsite_string(item.header.callsite_loc));
                         callbytes = sizeof(args->variant.hd_transfer_args);
-                        printf("This is a HD transfer. Source: 0x%lx, Dest: 0x%lx, Len: %d\n",
-                            args->variant.hd_transfer_args.src_addr,
-                            args->variant.hd_transfer_args.dest_addr,
-                            args->variant.hd_transfer_args.num_bytes);
-
+                        break;
+                    case RR_CALL_NET_TRANSFER:
+                        printf("RR_SKIPPED_CALL %s (%s, src: 0x%lx, dst: 0x%lx, len: %d) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               net_transfer_str[args->variant.net_transfer_args.type],
+                               args->variant.net_transfer_args.src_addr,
+                               args->variant.net_transfer_args.dest_addr,
+                               args->variant.net_transfer_args.num_bytes,
+                               get_callsite_string(item.header.callsite_loc));
+                        callbytes = sizeof(args->variant.net_transfer_args);
+                        break;
+                    case RR_CALL_HANDLE_PACKET:
+                        printf("RR_SKIPPED_CALL %s (dir: %d, size: %d) from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               args->variant.handle_packet_args.direction,
+                               args->variant.handle_packet_args.size,
+                               get_callsite_string(item.header.callsite_loc));
+                        rr_spit_buffer(args->variant.handle_packet_args.buf, args->variant.handle_packet_args.size);
+                        callbytes = sizeof(args->variant.handle_packet_args) + args->variant.handle_packet_args.size;
+                        break;
+                    default:
+                        printf("RR_SKIPPED_CALL %s from %s\n",
+                               get_skipped_call_kind_string(item.variant.call_args.kind),
+                               get_callsite_string(item.header.callsite_loc));
                         break;
                 }
-                printf("\tRR_SKIPPED_CALL_(%s) from %s",
-                        get_skipped_call_kind_string(item.variant.call_args.kind),
-                        get_callsite_string(item.header.callsite_loc));
-                if (callbytes != -1) {
+                /*if (callbytes != -1) {
                   printf(" %d bytes\n", callbytes);
                 } else {
                   printf("\n");
-                }
+                }*/
                 break;
             }
         case RR_LAST:
-            printf("\tRR_LAST\n");
+            printf("RR_LAST\n");
             break;
         case RR_DEBUG:
-            printf("\tRR_DEBUG\n");
+            printf("RR_DEBUG\n");
             break;
         default:
-            printf("\tUNKNOWN RR log kind %d\n", item.header.kind);
+            printf("UNKNOWN RR log kind %d\n", item.header.kind);
             break;
     }
 }
@@ -157,6 +203,9 @@ static inline void free_entry_params(RR_log_entry *entry)
                     g_free(entry->variant.call_args.variant.cpu_mem_unmap.buf);
                     entry->variant.call_args.variant.cpu_mem_unmap.buf = NULL;
                     break;
+                case RR_CALL_HANDLE_PACKET:
+                    g_free(entry->variant.call_args.variant.handle_packet_args.buf);
+                    entry->variant.call_args.variant.handle_packet_args.buf = NULL;
             }
             break;
         case RR_INPUT_1:
@@ -235,10 +284,10 @@ static RR_log_entry *rr_read_item(void) {
                         assert(fread(&(args->variant.cpu_mem_unmap), sizeof(args->variant.cpu_mem_unmap), 1, rr_nondet_log->fp) == 1);
                         //mz buffer length in args->variant.cpu_mem_unmap.len
                         //mz always allocate a new one. we free it when the item is added to the recycle list
-                        //args->variant.cpu_mem_unmap.buf = g_malloc(args->variant.cpu_mem_unmap.len);
+                        args->variant.cpu_mem_unmap.buf = g_malloc(args->variant.cpu_mem_unmap.len);
                         //mz read the buffer
-                        //assert(fread(args->variant.cpu_mem_unmap.buf, 1, args->variant.cpu_mem_unmap.len, rr_nondet_log->fp) > 0);
-                        fseek(rr_nondet_log->fp, args->variant.cpu_mem_unmap.len, SEEK_CUR);
+                        assert(fread(args->variant.cpu_mem_unmap.buf, 1, args->variant.cpu_mem_unmap.len, rr_nondet_log->fp) > 0);
+                        //fseek(rr_nondet_log->fp, args->variant.cpu_mem_unmap.len, SEEK_CUR);
                         break;
                     case RR_CALL_CPU_REG_MEM_REGION:
                         assert(fread(&(args->variant.cpu_mem_reg_region_args), 
@@ -251,8 +300,10 @@ static RR_log_entry *rr_read_item(void) {
                     case RR_CALL_HANDLE_PACKET:
                         assert(fread(&(args->variant.handle_packet_args),
                               sizeof(args->variant.handle_packet_args), 1, rr_nondet_log->fp) == 1);
-                        fseek(rr_nondet_log->fp,
-                            args->variant.handle_packet_args.size, SEEK_CUR);
+                        args->variant.handle_packet_args.buf = g_malloc(args->variant.handle_packet_args.size);
+                        assert(fread(args->variant.handle_packet_args.buf, 1, args->variant.handle_packet_args.size, rr_nondet_log->fp) > 0);
+                        //fseek(rr_nondet_log->fp,
+                        //    args->variant.handle_packet_args.size, SEEK_CUR);
                         break;
                     case RR_CALL_NET_TRANSFER:
                         assert(fread(&(args->variant.net_transfer_args),
