@@ -26,6 +26,8 @@ volatile sig_atomic_t rr_use_live_exit_request = 0;
 //mz the log of non-deterministic events
 RR_log *rr_nondet_log = NULL;
 
+long long base_instr = 0;
+
 static inline uint8_t log_is_empty(void) {
     if ((rr_nondet_log->type == REPLAY) &&
         (rr_nondet_log->size - ftell(rr_nondet_log->fp) == 0)) {
@@ -47,8 +49,8 @@ char * rr_requested_name = NULL;
 
 // write this program point to this file 
 static void rr_spit_prog_point_fp(FILE *fp, RR_prog_point pp) {
-  fprintf(fp, "{instr=%010llu, pc=0x%016llx, sec=0x%016llx} ", 
-      (unsigned long long)pp.guest_instr_count,
+  fprintf(fp, "{instr=%13llu, pc=0x%016llx, sec=0x%016llx} ", 
+          (unsigned long long) (base_instr + pp.guest_instr_count),
 	  (unsigned long long)pp.pc,
 	  (unsigned long long)pp.secondary);
 }
@@ -353,6 +355,9 @@ void rr_create_replay_log (const char *filename) {
 }
 
 int main(int argc, char **argv) {
+    if (argc > 2) {
+        base_instr = atoll(argv[2]);
+    }
     rr_create_replay_log(argv[1]);
     printf("RR Log with %llu instructions\n", (unsigned long long) rr_nondet_log->last_prog_point.guest_instr_count);
     RR_log_entry *log_entry = NULL;
