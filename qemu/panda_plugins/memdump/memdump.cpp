@@ -49,16 +49,10 @@ int mem_read_callback(CPUState *env, target_ulong pc, target_ulong addr, target_
 
 }
 
-struct prog_point {
-    target_ulong caller;
-    target_ulong pc;
-    target_ulong cr3;
-    bool operator <(const prog_point &p) const {
-        return (this->pc < p.pc) || \
-               (this->pc == p.pc && this->caller < p.caller) || \
-               (this->pc == p.pc && this->caller == p.caller && this->cr3 < p.cr3);
-    }
-};
+#include "../common/prog_point.h"
+#include "pandalog.h"
+#include "../callstack_instr/callstack_instr_ext.h"
+#include "panda_plugin_plugin.h"
 
 struct fpos { unsigned long off; };
 std::map<prog_point,fpos> read_tracker;
@@ -71,13 +65,7 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
                        target_ulong size, void *buf,
                        std::map<prog_point,fpos> &tracker, unsigned char *log) {
     prog_point p = {};
-#ifdef TARGET_I386
-    panda_virtual_memory_rw(env, env->regs[R_EBP]+4, (uint8_t *)&p.caller, 4, 0);
-    if((env->hflags & HF_CPL_MASK) != 0) // Lump all kernel-mode CR3s together
-        p.cr3 = env->cr[3];
-#endif
-    p.pc = pc;
-    
+    get_prog_point(env, &p);
     //fseek(log, tracker[p].off, SEEK_SET);
     //fwrite((unsigned char *)buf, size, 1, log);
     fpos &fp = tracker[p];
@@ -99,6 +87,9 @@ bool init_plugin(void *self) {
     panda_cb pcb;
 
     printf("Initializing plugin memdump\n");
+
+    panda_require("callstack_instr");
+    if(!init_callstack_instr_api()) return false;
 
     // Need this to get EIP with our callbacks
     panda_enable_precise_pc();
