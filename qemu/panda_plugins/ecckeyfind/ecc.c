@@ -419,6 +419,16 @@ bool cryptocurve_check_private_key(CryptoCurve *cc, const mpz_t priv, const Poin
   return point_eq(cc->c, &cc->tmpp2, pub);
 }
 
+bool cryptocurve_check_private_key_x(CryptoCurve *cc, const mpz_t priv, const mpz_t pubx) {
+  cryptocurve_exp(cc, &cc->tmpp2, priv);
+  point_normalize(cc->c, &cc->tmpp2);
+  if (mpz_cmp(cc->tmpp2.x, pubx) != 0) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 bool cryptocurve_check_private_key_str(CryptoCurve *cc, const char *priv, const Point *pub) {
   mpz_t priv_mpz;
   mpz_init(priv_mpz);
@@ -436,7 +446,17 @@ bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, const 
   mpz_clear(priv_mpz);
 }
 
+bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, const mpz_t pubx) {
+  mpz_t priv_mpz;
+  mpz_init(priv_mpz);
+  mpz_import(priv_mpz, cc->size_bytes, 1, 1, 1, 0, priv);
+  //gmp_fprintf(stderr, "Trying secret key %#Zx\n", priv_mpz);
+  return cryptocurve_check_private_key_x(cc, priv_mpz, pubx);
+  mpz_clear(priv_mpz);
+}
+
 // Just for test
+int main_(void);
 int main_(void) {
 
   const char *p = "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f";

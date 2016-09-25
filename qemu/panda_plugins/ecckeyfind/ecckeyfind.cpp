@@ -60,6 +60,8 @@ int after_block_translate_cb(CPUState *env, TranslationBlock *tb);
 Curve curve;
 Point gpoint;
 Point pub;
+mpz_t pubx;
+bool use_x;
 CryptoCurve crypto_curve;
 
 bool have_candidates = true;
@@ -102,7 +104,12 @@ int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr,
         }
         if (likely(k->filled)) {
           const unsigned char *attempt = &k->key[k->start];
-          bool match = cryptocurve_check_private_key_raw(&crypto_curve, (char*) attempt, &pub);
+          bool match;
+          if (!use_x) {
+            match = cryptocurve_check_private_key_raw(&crypto_curve, (char*) attempt, &pub);
+          } else {
+            match = cryptocurve_check_private_key_x_raw(&crypto_curve, (char*) attempt, pubx);
+          }
 
             if (unlikely(match)) {
                 fprintf(stderr, "ECC match found at " TARGET_FMT_lx " " TARGET_FMT_lx " " TARGET_FMT_lx "\n",
@@ -284,14 +291,20 @@ bool init_plugin(void *self) {
     if (!found_g1) { fprintf(stderr, "Missing value for g1\n"); return false; }
     if (!found_g2) { fprintf(stderr, "Missing value for g2\n"); return false; }
     if (!found_pub1) { fprintf(stderr, "Missing value for pub1\n"); return false; }
-    if (!found_pub2) { fprintf(stderr, "Missing value for pub2\n"); return false; }
+    //if (!found_pub2) { fprintf(stderr, "Missing value for pub2\n"); return false; }
 
     curve_init(&curve);
     curve_set_str(&curve, p.c_str(), a.c_str(), b.c_str());
     point_init(&gpoint);
     point_set_str(&gpoint, g1.c_str(), g2.c_str());
-    point_init(&pub);
-    point_set_str(&pub, pub1.c_str(), pub2.c_str());
+    if (found_pub2) {
+      point_init(&pub);
+      point_set_str(&pub, pub1.c_str(), pub2.c_str());
+      use_x = false;
+    } else {
+      mpz_set_str(pubx, pub1.c_str(), 0);
+      use_x = true;
+    }
     cryptocurve_init(&crypto_curve);
     cryptocurve_set(&crypto_curve, &curve, &gpoint);
 

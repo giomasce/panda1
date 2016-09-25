@@ -48,9 +48,10 @@ extern "C" {
   void cryptocurve_set(CryptoCurve *cc, Curve *c, const Point *g);
   void cryptocurve_exp(CryptoCurve *cc, Point *pr, const mpz_t exp);
   bool cryptocurve_check_private_key(CryptoCurve *cc, const mpz_t priv, const Point *pub);
+  bool cryptocurve_check_private_key_x(CryptoCurve *cc, const mpz_t priv, const mpz_t pubx);
   bool cryptocurve_check_private_key_str(CryptoCurve *cc, const char *priv, const Point *pub);
   bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, const Point *pub);
-  int main_(void);
+  bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, const mpz_t pubx);
 
 #ifdef __cplusplus
 }
