@@ -50,8 +50,8 @@ extern "C" {
   bool cryptocurve_check_private_key(CryptoCurve *cc, const mpz_t priv, const Point *pub);
   bool cryptocurve_check_private_key_x(CryptoCurve *cc, const mpz_t priv, const mpz_t pubx);
   bool cryptocurve_check_private_key_str(CryptoCurve *cc, const char *priv, const Point *pub);
-  bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, const Point *pub);
-  bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, const mpz_t pubx);
+  bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, int priv_len, const Point *pub);
+  bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, int priv_len, const mpz_t pubx);
 
 #ifdef __cplusplus
 }

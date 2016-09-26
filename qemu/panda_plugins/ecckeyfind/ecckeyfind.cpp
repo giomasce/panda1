@@ -85,7 +85,10 @@ int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr,
                        target_ulong size, void *buf) {
     prog_point p = {};
     get_prog_point(env, &p);
-    const size_t &key_size = crypto_curve.size_bytes;
+    const size_t key_size = crypto_curve.size_bytes;
+    // Sometimes key can be a byte longer, because they are not
+    // reduced in modulo in the middle of a computation
+    //const size_t key_size = crypto_curve.size_bytes + 1;
 
     // Only use candidates found in config (pre-filtered for key-ness)
     if (have_candidates && candidates.find(p) == candidates.end()) {
@@ -106,9 +109,9 @@ int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr,
           const unsigned char *attempt = &k->key[k->start];
           bool match;
           if (!use_x) {
-            match = cryptocurve_check_private_key_raw(&crypto_curve, (char*) attempt, &pub);
+            match = cryptocurve_check_private_key_raw(&crypto_curve, (char*) attempt, key_size, &pub);
           } else {
-            match = cryptocurve_check_private_key_x_raw(&crypto_curve, (char*) attempt, pubx);
+            match = cryptocurve_check_private_key_x_raw(&crypto_curve, (char*) attempt, key_size, pubx);
           }
 
             if (unlikely(match)) {
@@ -320,8 +323,8 @@ bool init_plugin(void *self) {
     }
 
     // Enable our callbacks
-    pcb.virt_mem_write = mem_write_callback;
-    panda_register_callback(self, PANDA_CB_VIRT_MEM_WRITE, pcb);
+    pcb.virt_mem_read = mem_write_callback;
+    panda_register_callback(self, PANDA_CB_VIRT_MEM_READ, pcb);
     pcb.before_block_translate = before_block_translate_cb;
     panda_register_callback(self, PANDA_CB_BEFORE_BLOCK_TRANSLATE, pcb);
     pcb.after_block_translate = after_block_translate_cb;

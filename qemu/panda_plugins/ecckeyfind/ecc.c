@@ -8,6 +8,8 @@
 
 #include "ecc.h"
 
+#define ADDITIONAL_EXP_BITS 8
+
 /* EC arithmetic formulas initially taken from
    http://www.infosecwriters.com/text_resources/pdf/Elliptic_Curve_AnnopMS.pdf. Then
    I discovered that they are slightly wrong (there are a few typos
@@ -392,12 +394,14 @@ void cryptocurve_set(CryptoCurve *cc, Curve *c, const Point *g) {
   // all used EC have an integer number of bytes
   cc->size_bytes = (cc->size + 7) / 8;
 
-  // Precompute multipliers for faster exponentiation of g
-  cc->mults = malloc(cc->size * sizeof(Point));
+  // Precompute multipliers for faster exponentiation of g; we store a
+  // few additional multiplier because sometimes the tested key is not
+  // reduced in modulo
+  cc->mults = malloc((cc->size + ADDITIONAL_EXP_BITS) * sizeof(Point));
   point_init(&cc->mults[0]);
   point_copy(&cc->mults[0], cc->g);
   point_normalize(cc->c, &cc->mults[0]);
-  for (int i = 1; i < cc->size; i++) {
+  for (int i = 1; i < cc->size + ADDITIONAL_EXP_BITS; i++) {
     point_init(&cc->mults[i]);
     point_square(cc->c, &cc->mults[i], &cc->mults[i-1]);
     point_normalize(cc->c, &cc->mults[i]);
@@ -406,7 +410,7 @@ void cryptocurve_set(CryptoCurve *cc, Curve *c, const Point *g) {
 
 void cryptocurve_exp(CryptoCurve *cc, Point *pr, const mpz_t exp) {
   point_set_identity(pr);
-  for (int i = 0; i < cc->size; i++) {
+  for (int i = 0; i < cc->size + ADDITIONAL_EXP_BITS; i++) {
     if (mpz_tstbit(exp, i)) {
       point_mult(cc->c, &cc->tmpp1, pr, &cc->mults[i]);
       point_copy(pr, &cc->tmpp1);
@@ -437,19 +441,19 @@ bool cryptocurve_check_private_key_str(CryptoCurve *cc, const char *priv, const 
   mpz_clear(priv_mpz);
 }
 
-bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, const Point *pub) {
+bool cryptocurve_check_private_key_raw(CryptoCurve *cc, const char *priv, int priv_len, const Point *pub) {
   mpz_t priv_mpz;
   mpz_init(priv_mpz);
-  mpz_import(priv_mpz, cc->size_bytes, 1, 1, 1, 0, priv);
+  mpz_import(priv_mpz, priv_len, 1, 1, 1, 0, priv);
   //gmp_fprintf(stderr, "Trying secret key %#Zx\n", priv_mpz);
   return cryptocurve_check_private_key(cc, priv_mpz, pub);
   mpz_clear(priv_mpz);
 }
 
-bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, const mpz_t pubx) {
+bool cryptocurve_check_private_key_x_raw(CryptoCurve *cc, const char *priv, int priv_len, const mpz_t pubx) {
   mpz_t priv_mpz;
   mpz_init(priv_mpz);
-  mpz_import(priv_mpz, cc->size_bytes, 1, 1, 1, 0, priv);
+  mpz_import(priv_mpz, priv_len, 1, 1, 1, 0, priv);
   //gmp_fprintf(stderr, "Trying secret key %#Zx\n", priv_mpz);
   return cryptocurve_check_private_key_x(cc, priv_mpz, pubx);
   mpz_clear(priv_mpz);
