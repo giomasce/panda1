@@ -28,6 +28,8 @@ extern "C" {
 
 }
 
+#include <byteswap.h>
+
 #include "aesfind.h"
 
 #include <unordered_set>
@@ -54,6 +56,7 @@ int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong siz
 
 #define CACHE_LEN 8
 
+/*
 std::map< target_ulong, std::deque< std::pair< uint8_t, prog_point > > > past_bytes;
 std::map< prog_point, uint64_t > read_num;
 std::map< prog_point, uint64_t > found_num;
@@ -98,6 +101,69 @@ int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong siz
   }
 
 }
+*/
+
+std::map< target_ulong, std::deque< uint32_t > > past_reads;
+
+int cb_read(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf) {
+
+  if (size != 4) {
+    return 0;
+  }
+
+  prog_point pp = {};
+  auto cbuf = (unsigned char*) buf;
+  get_prog_point(env, &pp);
+  auto &cur = past_reads[pp.cr3];
+
+  uint32_t val = *((uint32_t*) buf);
+  cur.push_front(val);
+  if (cur.size() > CACHE_LEN) {
+    cur.resize(CACHE_LEN);
+  }
+
+}
+
+// Some code from https://sources.debian.net/src/nettle/2.7.1-5%2Bdeb8u1/aes-internal.h/ and https://sources.debian.net/src/nettle/2.7.1-5%2Bdeb8u1/macros.h/
+#define B0(x) ((x) & 0xff)
+#define B1(x) (((x) >> 8) & 0xff)
+#define B2(x) (((x) >> 16) & 0xff)
+#define B3(x) (((x) >> 24) & 0xff)
+#define SUBBYTE(x, box) ((uint32_t)(box)[B0(x)] \
+		      | ((uint32_t)(box)[B1(x)] << 8)	\
+		      | ((uint32_t)(box)[B2(x)] << 16)	\
+		      | ((uint32_t)(box)[B3(x)] << 24))
+#define ROTL32(n,x) (((x)<<(n)) | ((x)>>(32-(n))))
+
+static inline bool test_schedule_core(const uint32_t &prev, const uint32_t &key, const uint32_t &res, const prog_point &pp) {
+
+  if (res == (SUBBYTE(ROTL32(24, key), sbox) ^ 0x01 ^ prev)) {
+    printf("Found match! %08x %08x %08x\n", prev, key, res);
+    printf("%s\n", pp.to_string().c_str());
+  }
+
+}
+
+int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf) {
+
+  if (size != 4) {
+    return 0;
+  }
+
+  prog_point pp = {};
+  auto cbuf = (unsigned char*) buf;
+  get_prog_point(env, &pp);
+  auto &cur = past_reads[pp.cr3];
+
+  uint32_t val = *((uint32_t*) buf);
+  for (auto &prev : cur) {
+    for (auto &key : cur) {
+      test_schedule_core(prev, key, val, pp);
+      test_schedule_core(__bswap_32(prev), __bswap_32(key), __bswap_32(val), pp);
+    }
+  }
+
+}
 
 bool init_plugin(void *self) {
 
@@ -122,6 +188,7 @@ bool init_plugin(void *self) {
 
 void uninit_plugin(void *self) {
 
+  /*
   std::vector< std::tuple< double, uint64_t, prog_point > > results;
   auto i = read_num.begin();
   auto j = found_num.begin();
@@ -141,5 +208,6 @@ void uninit_plugin(void *self) {
     auto &res = results[k];
     printf("%f %d %s\n", std::get<0>(res), std::get<1>(res), std::get<2>(res).to_string().c_str());
   }
+  */
 
 }
