@@ -137,9 +137,18 @@ int cb_read(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size
 
 static inline bool test_schedule_core(const uint32_t &prev, const uint32_t &key, const uint32_t &res, const prog_point &pp) {
 
+  // Memory areas filled with the same byte often generate false
+  // positives; we exclude all the keys whose four bytes have the same
+  // value
+  if (B0(key) == B1(key) || B0(key) == B2(key) || B0(key) == B3(key)) {
+    return false;
+  }
   if (res == (SUBBYTE(ROTL32(24, key), sbox) ^ 0x01 ^ prev)) {
     printf("Found match! %08x %08x %08x\n", prev, key, res);
     printf("%s\n", pp.to_string().c_str());
+    return true;
+  } else {
+    return false;
   }
 
 }
@@ -156,8 +165,10 @@ int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong siz
   auto &cur = past_reads[pp.cr3];
 
   uint32_t val = *((uint32_t*) buf);
-  for (auto &prev : cur) {
-    for (auto &key : cur) {
+  for (auto &key : cur) {
+    test_schedule_core(0, key, val, pp);
+    test_schedule_core(0, __bswap_32(key), __bswap_32(val), pp);
+    for (auto &prev : cur) {
       test_schedule_core(prev, key, val, pp);
       test_schedule_core(__bswap_32(prev), __bswap_32(key), __bswap_32(val), pp);
     }
