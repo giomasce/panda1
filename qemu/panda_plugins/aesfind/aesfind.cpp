@@ -104,6 +104,7 @@ int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong siz
 */
 
 std::map< target_ulong, std::deque< uint32_t > > past_reads;
+std::deque< std::pair < uint32_t, std::vector< uint32_t > > > current_keys;
 
 int cb_read(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf) {
 
@@ -135,7 +136,7 @@ int cb_read(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size
 		      | ((uint32_t)(box)[B3(x)] << 24))
 #define ROTL32(n,x) (((x)<<(n)) | ((x)>>(32-(n))))
 
-static inline bool test_schedule_core(const uint32_t &prev, const uint32_t &key, const uint32_t &res, const prog_point &pp) {
+static inline bool test_schedule_core(const uint32_t prev, const uint32_t key, const uint32_t res, const prog_point pp, const int round) {
 
   // Memory areas filled with the same byte often generate false
   // positives; we exclude all the keys whose four bytes have the same
@@ -143,7 +144,7 @@ static inline bool test_schedule_core(const uint32_t &prev, const uint32_t &key,
   if (B0(key) == B1(key) || B0(key) == B2(key) || B0(key) == B3(key)) {
     return false;
   }
-  if (res == (SUBBYTE(ROTL32(24, key), sbox) ^ 0x01 ^ prev)) {
+  if (res == (SUBBYTE(ROTL32(24, key), sbox) ^ rcon[round] ^ prev)) {
     printf("Found match! %08x %08x %08x\n", prev, key, res);
     printf("%s\n", pp.to_string().c_str());
     return true;
@@ -166,11 +167,19 @@ int cb_write(CPUState *env, target_ulong pc, target_ulong addr, target_ulong siz
 
   uint32_t val = *((uint32_t*) buf);
   for (auto &key : cur) {
-    test_schedule_core(0, key, val, pp);
-    test_schedule_core(0, __bswap_32(key), __bswap_32(val), pp);
+    //test_schedule_core(0, key, val, pp, 1);
+    //test_schedule_core(0, __bswap_32(key), __bswap_32(val), pp, 1);
     for (auto &prev : cur) {
-      test_schedule_core(prev, key, val, pp);
-      test_schedule_core(__bswap_32(prev), __bswap_32(key), __bswap_32(val), pp);
+      if (test_schedule_core(prev, key, val, pp, 1)) {
+        std::vector< uint32_t > v;
+        v.push_back(key);
+        current_keys.push_front(make_pair(val, v));
+      }
+      if (test_schedule_core(__bswap_32(prev), __bswap_32(key), __bswap_32(val), pp, 1)) {
+        std::vector< uint32_t > v;
+        v.push_back(key);
+        current_keys.push_front(make_pair(val, v));
+      }
     }
   }
 
